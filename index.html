@@ -121,7 +121,7 @@ select:focus,input:focus{outline:2px solid #ff8a1f55;border-color:#ff8a1f}
 .town i{position:absolute;left:-2.5px;top:-2.5px;width:5px;height:5px;border-radius:50%;background:#cfd6df;box-shadow:0 0 0 1.5px rgba(0,0,0,.55)}
 .town span{position:absolute;left:7px;top:-8px;white-space:nowrap;color:#dfe4eb;font:600 11px/1 system-ui;text-shadow:0 0 3px #000,0 0 3px #000,0 0 5px #000}
 .town.r1 span{font-size:13px;font-weight:700}.town.r1 i{width:7px;height:7px;left:-3.5px;top:-3.5px}
-.town.r2,.town.r3{display:none}
+.town.r2,.town.r3{display:block}
 [data-z="8"] .town.r2,[data-z="9"] .town.r2,[data-z="10"] .town.r2,[data-z="11"] .town.r2,[data-z="12"] .town.r2{display:block}
 [data-z="9"] .town.r3,[data-z="10"] .town.r3,[data-z="11"] .town.r3,[data-z="12"] .town.r3{display:block}
 .rl{background:none;border:0;pointer-events:none}
@@ -142,7 +142,10 @@ select:focus,input:focus{outline:2px solid #ff8a1f55;border-color:#ff8a1f}
 .qtag{display:inline-block;background:#3b9bff;color:#fff;border-radius:50%;width:15px;height:15px;font:800 11px/15px system-ui;text-align:center;margin-left:4px;vertical-align:1px}
 .admrow{display:flex;gap:8px;margin-top:8px}.admrow input{flex:1;min-width:0}
 .admitem{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:5px 0;font-size:13px;word-break:break-all}
-#offline{position:absolute;z-index:950;top:44px;left:50%;transform:translateX(-50%);background:rgba(58,18,18,.95);border:1px solid #7a2a2a;color:#ffb4b4;
+#status{position:absolute;z-index:900;top:36px;left:50%;transform:translateX(-50%);display:flex;gap:6px 12px;flex-wrap:wrap;justify-content:center;pointer-events:none;
+  background:rgba(14,18,23,.88);border:1px solid var(--line);color:#c9d1db;padding:5px 12px;border-radius:999px;font:600 11px/1.2 system-ui;white-space:nowrap;max-width:94vw;backdrop-filter:blur(6px)}
+#status b{color:#fff}#status .ok{color:#6ee7a0}#status .bad{color:#ff8d8d}
+#offline{position:absolute;z-index:950;top:74px;left:50%;transform:translateX(-50%);background:rgba(58,18,18,.95);border:1px solid #7a2a2a;color:#ffb4b4;
   padding:8px 14px;border-radius:12px;font:700 12.5px/1.3 system-ui;max-width:min(92vw,520px);text-align:center;backdrop-filter:blur(6px);box-shadow:0 6px 24px rgba(0,0,0,.45)}
 .tgt .tid{position:absolute;left:50%;top:100%;transform:translate(-50%,-3px);font:800 10px/1 ui-monospace,Menlo,monospace;color:#fff;text-shadow:0 0 3px #000,0 0 3px #000}
 #toast{position:fixed;z-index:3000;left:50%;bottom:22px;transform:translate(-50%,30px);opacity:0;pointer-events:none;
@@ -153,8 +156,8 @@ select:focus,input:focus{outline:2px solid #ff8a1f55;border-color:#ff8a1f}
   #panel{left:8px;right:8px;top:auto;bottom:8px;width:auto;max-height:46vh}
   #panel.collapsed{max-height:none}
   #badge{font-size:9.5px;padding:5px 10px;top:8px}
-  #clock{bottom:auto;top:40px;right:8px}
-  .leaflet-top.leaflet-right{margin-top:60px}
+  #clock{bottom:auto;top:84px;right:8px}
+  #status{top:34px;font-size:10px;padding:5px 10px}
 }
 /* розділення ролей (завжди в кінці, з !important): глядач не бачить ні панелі, ні кнопок керування */
 body:not(.is-admin) #panel,body:not(.is-admin) #modal,body:not(.is-admin) .pinfo .pa{display:none!important}
@@ -166,6 +169,7 @@ body:not(.is-owner) #adminsec{display:none!important}
 <div id="map"></div>
 <div id="badge"><i></i>Симуляція · вигадані дані, не офіційні повідомлення</div>
 <div id="offline" hidden role="alert">⚠ Адміністратора немає в мережі — карта наразі не оновлюється</div>
+<div id="status"><span id="stNet"></span><span id="stPing"></span><span id="stOn"></span><span id="stAdm"></span></div>
 <div id="clock"></div>
 <button class="ib" id="lock" title="Вхід для адміністратора" aria-label="Вхід для адміністратора">🔒</button>
 
@@ -227,6 +231,10 @@ body:not(.is-owner) #adminsec{display:none!important}
     <div id="mstw">
       <span class="lbl">Статус курсу</span>
       <div class="seg" id="mst"><button type="button" data-s="predicted">? Непідтверджений</button><button type="button" data-s="confirmed">Підтверджений</button></div>
+      <div id="mprobw" hidden>
+        <label class="lbl" for="mprob">Імовірність, що ціль там / летить туди: <b id="mprobv" style="color:var(--tx)">60%</b></label>
+        <input type="range" id="mprob" min="5" max="95" step="5" value="60" style="width:100%;accent-color:#3b9bff">
+      </div>
       <p class="hint">Синій зі знаком «?» — курс лише передбачений. Червоний без знака — підтверджений. Змінити можна будь-коли через ✎.</p>
     </div>
     <div id="mdirw">
@@ -348,6 +356,13 @@ const FAR = [
  ['Новоград-Волинський',50.5906,27.6203,0,['звягель','новоград-волынский']],
  ['Коростень',50.9547,28.6372,0,[]],
  ['Сарни',51.3383,26.6089,0,[]],
+ ['Погребище',49.4833,29.2667,0,['погребище']],
+ ['Ладижин',48.6833,29.2333,0,[]],
+ ['Тульчин',48.6783,28.8486,0,[]],
+ ['Гайсин',48.8100,29.3844,0,[]],
+ ['Хмільник',49.5500,27.9667,0,[]],
+ ['Умань',48.7484,30.2218,0,[]],
+ ['Біла Церква',49.8094,30.1121,0,['белая церковь']],
 ];
 const TKEYS = [...TOWNS,...FAR].map(t=>({t,keys:[t[0],...t[4]].map(norm)}));
 function lev(a,b){if(a===b)return 0;const m=a.length,n=b.length;if(!m)return n;if(!n)return m;let p=Array.from({length:n+1},(_,i)=>i);for(let i=1;i<=m;i++){const c=[i];for(let j=1;j<=n;j++)c[j]=Math.min(p[j]+1,c[j-1]+1,p[j-1]+(a[i-1]===b[j-1]?0:1));p=c;}return p[n];}
@@ -379,7 +394,7 @@ function nearOblast(lat,lon){
   return false;
 }
 async function getJSON(url){
-  const ac=new AbortController(),to=setTimeout(()=>ac.abort(),7000);
+  const ac=new AbortController(),to=setTimeout(()=>ac.abort(),9000);
   try{const r=await fetch(url,{signal:ac.signal});if(!r.ok)throw new Error('HTTP '+r.status);return await r.json();}
   finally{clearTimeout(to);}
 }
@@ -390,7 +405,7 @@ async function fetchCandidates(q){
   const bb=[BB[0],BB[1],BB[2],BB[3]];
   const nom=async()=>{
     const j=await getJSON(`https://nominatim.openstreetmap.org/search?format=jsonv2&limit=12&accept-language=uk&countrycodes=ua&addressdetails=1&namedetails=1&viewbox=${bb[0]},${bb[3]},${bb[2]},${bb[1]}&q=${encodeURIComponent(q)}`);
-    return (j||[]).filter(x=>(x.category||x.class)==='place').map(x=>{
+    return (j||[]).filter(x=>{const c=x.category||x.class,ty=x.addresstype||x.type;return c==='place'||(c==='boundary'&&/^(city|town|village|hamlet|municipality)$/.test(ty));}).map(x=>{
       const nd=x.namedetails||{},a=x.address||{},p=String(x.display_name||'').split(',')[0].trim();
       return {name:nd['name:uk']||nd.name||x.name||p,lat:+x.lat,lon:+x.lon,sub:shortSub(a.county||a.municipality||a.state_district,a.state)};});
   };
@@ -402,6 +417,7 @@ async function fetchCandidates(q){
   };
   const rs=await Promise.allSettled([nom(),pho()]);
   if(rs.every(r=>r.status==='rejected'))throw rs[0].reason;
+  const partial=rs.some(r=>r.status==='rejected');
   const all=rs.filter(r=>r.status==='fulfilled').flatMap(r=>r.value)
     .filter(c=>isFinite(c.lat)&&isFinite(c.lon)&&c.name&&CYR.test(c.name));       // латиниця («Nova Ushytsia») не потрібна
   const out=[];
@@ -410,12 +426,16 @@ async function fetchCandidates(q){
     out.push(c);
   }
   out.sort((a,b)=>distM(a.lat,a.lon,OB_C[0],OB_C[1])-distM(b.lat,b.lon,OB_C[0],OB_C[1]));
+  if(partial&&!out.length)throw new Error('partial');
   return out;
 }
 function geoLookup(raw,q){
   GC.set(q,{state:'pending',list:[]});
-  fetchCandidates(raw.trim().replace(/^(с\.|с|село|смт|селище)\s+/i,'')).then(list=>GC.set(q,{state:'done',list}))
-    .catch(()=>GC.set(q,{state:'error',list:[]})).then(()=>{if(!$('#modal').hidden)refreshModal();});
+  const name=raw.trim().replace(/^(с\.|с|село|смт|селище)\s+/i,'');
+  const run=n=>fetchCandidates(name).then(list=>{GC.set(q,{state:'done',list});},()=>{
+    if(n>0)return new Promise(r=>setTimeout(r,1200)).then(()=>run(n-1));   // збій мережі чи ліміт сервісу — пробуємо ще
+    GC.set(q,{state:'error',list:[]});});
+  run(2).then(()=>{if(!$('#modal').hidden)refreshModal();});
 }
 function geoBest(q,list){
   const lim=q.length<=4?0:q.length<=6?1:q.length<=9?2:3;
@@ -495,7 +515,7 @@ document.body.classList.toggle('is-admin',ADMIN);
 let checkPresence=()=>{};
 const OFFLINE_MS=150000;     // адмін мовчить довше за це — вважаємо, що його немає в мережі
 const live=()=>S.targets.filter(t=>!t.done);
-const sigOf=x=>JSON.stringify([x.type,x.wps,x.speed,x.b,x.t0,!!x.hold,stOf(x)]);
+const sigOf=x=>JSON.stringify([x.type,x.wps,x.speed,x.b,x.t0,!!x.hold,stOf(x),x.prob||0]);
 
 /* Ціль зберігається як знімок {b, t0}: де вона була в момент t0.
    Поточне місце кожен браузер рахує сам із часу, що минув, тож усі бачать її в одній точці. */
@@ -509,7 +529,7 @@ function rebase(t){catchUp(t);t.b={lat:t.lat,lon:t.lon,hdg:t.hdg,idx:t.idx};t.t0
 
 function serialize(){
   return JSON.parse(JSON.stringify({auto:S.auto,mult:S.mult,nextId:S.nextId,raions:S.raions,
-    targets:live().map(t=>{const x={id:t.id,type:t.type,wps:t.wps,speed:t.speed,b:t.b,t0:t.t0,hold:!!t.hold,status:stOf(t)};t.sig=sigOf(x);return x;})}));
+    targets:live().map(t=>{const x={id:t.id,type:t.type,wps:t.wps,speed:t.speed,b:t.b,t0:t.t0,hold:!!t.hold,status:stOf(t),prob:t.prob||0};t.sig=sigOf(x);return x;})}));
 }
 function commit(){
   if(!ADMIN)return;
@@ -545,7 +565,7 @@ function stepT(t,dt){
   }
 }
 function remainM(t){let d=0,la=t.lat,lo=t.lon;for(let i=t.idx;i<t.wps.length;i++){d+=distM(la,lo,t.wps[i].lat,t.wps[i].lon);la=t.wps[i].lat;lo=t.wps[i].lon;}return d;}
-const routeText = t => t.free?'прямо ('+compass(t.hdg)+') до межі України':t.wps.slice(t.idx).map(w=>w.name).join(' → ');
+const routeText = t => t.free?'прямо ('+compass(t.hdg)+') до межі України':t.hold&&t.wps[t.idx]?'курсом на '+t.wps[t.idx].name+', невідомо звідки':t.wps.slice(t.idx).map(w=>w.name).join(' → ');
 const courseLL = t => t.free?[[t.lat,t.lon],moveBy(t.lat,t.lon,70000,t.hdg)]:[[t.lat,t.lon],...t.wps.slice(t.idx).map(w=>[w.lat,w.lon])];
 
 const BRG={N:0,NE:45,E:90,SE:135,S:180,SW:225,W:270,NW:315};
@@ -561,13 +581,13 @@ function spawnPoint(w,key){
 }
 
 /* ───────── карта ───────── */
-const map = L.map('map',{zoomControl:false,minZoom:6,maxZoom:13,zoomSnap:.5,zoomDelta:.5,maxBoundsViscosity:.8});
-L.control.zoom({position:'topright',zoomInTitle:'Приблизити',zoomOutTitle:'Віддалити'}).addTo(map);
+const map = L.map('map',{zoomControl:false,minZoom:6,maxZoom:13,zoomSnap:.5,zoomDelta:.5,maxBoundsViscosity:1,
+  dragging:false,scrollWheelZoom:false,doubleClickZoom:false,touchZoom:false,boxZoom:false,keyboard:false,tap:false});   // камера зафіксована на області
 map.setMaxBounds([[44.0,22.0],[53.0,40.5]]);
 L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:12,attribution:'© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'}).addTo(map);
 function fit(){
   const wide=innerWidth>720&&ADMIN;
-  map.fitBounds([[GEO.bounds[1],GEO.bounds[0]],[GEO.bounds[3],GEO.bounds[2]]],{paddingTopLeft:[wide?364:10,56],paddingBottomRight:[10,ADMIN&&!wide?Math.round(innerHeight*.48):10]});
+  map.fitBounds([[GEO.bounds[1],GEO.bounds[0]],[GEO.bounds[3],GEO.bounds[2]]],{animate:false,paddingTopLeft:[wide?364:10,70],paddingBottomRight:[10,ADMIN&&!wide?Math.round(innerHeight*.48):10]});
 }
 fit();
 const setZ=()=>{map.getContainer().dataset.z=String(Math.floor(map.getZoom()));};
@@ -598,7 +618,7 @@ const RT=new Map();
 function buildPopup(t){
   const T=TYPES[t.type],el=document.createElement('div');el.className='pinfo';
   el.innerHTML=`<div class="ph"><span class="pi">${SVG[t.type](tcol(t))}</span><div><b>${T.name}</b><small>Ціль #${t.id}</small></div></div>
-  <dl><dt>Статус курсу</dt><dd data-f="st"></dd><dt>Швидкість</dt><dd data-f="spd"></dd><dt>Курс</dt><dd data-f="hdg"></dd><dt>Маршрут</dt><dd data-f="route"></dd>
+  <dl><dt>Статус курсу</dt><dd data-f="st"></dd><dt>Імовірність</dt><dd data-f="prob"></dd><dt>Швидкість</dt><dd data-f="spd"></dd><dt>Курс</dt><dd data-f="hdg"></dd><dt>Маршрут</dt><dd data-f="route"></dd>
   <dt>Наступна точка</dt><dd data-f="next"></dd><dt>До кінця маршруту</dt><dd data-f="rem"></dd><dt>Прибуде через</dt><dd data-f="eta"></dd>
   <dt>Поблизу</dt><dd data-f="near"></dd><dt>Район</dt><dd data-f="raion"></dd></dl>
   <div class="pa"><button type="button" class="sm" data-a="edit">✎ Змінити курс</button><button type="button" class="sm danger" data-a="del">✕ Забрати</button></div>`;
@@ -609,13 +629,14 @@ function fillPopup(t,el){
   const set=(f,v)=>{const n=el.querySelector(`[data-f="${f}"]`);if(n)n.textContent=v;};
   const wp=t.wps[t.idx]||{name:'—',lat:t.lat,lon:t.lon},rem=remainM(t);
   set('spd',t.speed+' км/год');
+  set('prob',stOf(t)==='predicted'&&!t.free?(t.prob||60)+'% що летить туди':'—');
   set('st',t.free?'Курс втрачено ? · летить прямо':stOf(t)==='predicted'?'Непідтверджений ?':'Підтверджений');
   const pi=el.querySelector('.pi');if(pi)pi.innerHTML=SVG[t.type](tcol(t));
   set('hdg',String(Math.round(t.hdg)%360).padStart(3,'0')+'° '+compass(t.hdg));
   set('route',routeText(t));
-  set('next',t.free?'без цілі · летить прямо':t.hold?wp.name+' · утримує позицію':wp.name+' · '+km(distM(t.lat,t.lon,wp.lat,wp.lon))+' км');
+  set('next',t.free?'без цілі · летить прямо':t.hold?'курсом на '+wp.name+', невідомо звідки':wp.name+' · '+km(distM(t.lat,t.lon,wp.lat,wp.lon))+' км');
   set('rem',t.hold||t.free?'—':km(rem)+' км');
-  set('eta',t.free?'до виходу з України':t.hold?'на місці':fmtEta(rem/(t.speed/3.6*S.mult)));
+  set('eta',t.free?'до виходу з України':t.hold?'невідомо':fmtEta(rem/(t.speed/3.6*S.mult)));
   let nb=null,nd=Infinity;for(const x of TOWNS){const d=distM(t.lat,t.lon,x[1],x[2]);if(d<nd){nd=d;nb=x;}}
   set('near',nb[0]+' · '+km(nd)+' км');
   const ra=raionAt(t.lat,t.lon);
@@ -639,7 +660,7 @@ function addRuntime(t){
   const line=L.polyline([],{color:col,weight:1.6,opacity:.75,dashArray:'4 7',interactive:false}).addTo(map);
   const trail=L.polyline([],{color:col,weight:2.5,opacity:.3,interactive:false}).addTo(map);
   const pop=buildPopup(t);
-  marker.bindPopup(pop,{className:'tpop',offset:[0,-8],autoPanPadding:[30,30]});
+  marker.bindPopup(pop,{className:'tpop',offset:[0,-8],autoPan:false});
   marker.on('popupopen',()=>fillPopup(t,pop));
   const rt={marker,line,trail,tp:[],pop,rot:marker.getElement().querySelector('.rot')};
   RT.set(t.id,rt);
@@ -648,7 +669,7 @@ function addRuntime(t){
   rt.rot.style.transform=`rotate(${t.hdg}deg)`;
   line.setLatLngs(courseLL(t));
 }
-function createTarget(type,towns,dirKey,status){
+function createTarget(type,towns,dirKey,status,prob){
   const T=TYPES[type];
   const wps=towns.map(x=>({name:x[0],lat:x[1],lon:x[2]}));
   let b,hold=false;
@@ -660,13 +681,13 @@ function createTarget(type,towns,dirKey,status){
     const sp=spawnPoint(wps[0],dirKey);
     b={lat:sp.lat,lon:sp.lon,hdg:bearing(sp.lat,sp.lon,wps[0].lat,wps[0].lon),idx:0};
   }
-  const t={id:S.nextId++,type,wps,speed:Math.round(rand(T.speed[0],T.speed[1])/5)*5,b,t0:Date.now(),hold,status:status==='predicted'?'predicted':'confirmed'};
+  const t={id:S.nextId++,type,wps,speed:Math.round(rand(T.speed[0],T.speed[1])/5)*5,b,t0:Date.now(),hold,status:status==='predicted'?'predicted':'confirmed',prob:status==='predicted'?(prob||60):0};
   hydrate(t);S.targets.push(t);addRuntime(t);renderList();tick();commit();
   return t;
 }
-function editRoute(t,towns,status){
+function editRoute(t,towns,status,prob){
   catchUp(t);
-  if(status)t.status=status==='predicted'?'predicted':'confirmed';
+  if(status){t.status=status==='predicted'?'predicted':'confirmed';t.prob=t.status==='predicted'?(prob||60):0;}
   const was=t.hold;
   t.wps=towns.map(x=>({name:x[0],lat:x[1],lon:x[2]}));
   t.hold=!!was&&towns.length===1&&distM(t.lat,t.lon,towns[0][1],towns[0][2])<1500;   // стоїть, поки курс не змінять на інше місце
@@ -687,7 +708,7 @@ function removeTarget(id,why){
 }
 function focusTarget(id){
   const t=live().find(x=>x.id===id),rt=RT.get(id);if(!t||!rt)return;
-  map.setView([t.lat,t.lon],Math.max(map.getZoom(),9),{animate:true});rt.marker.openPopup();
+  rt.marker.openPopup();
 }
 
 /* ───────── панель ───────── */
@@ -723,7 +744,7 @@ function renderList(){
 function updateList(){
   for(const t of live()){
     const it=document.querySelector(`.titem[data-id="${t.id}"]`);if(!it)continue;
-    const el=it.querySelector('small');if(el)el.textContent=t.free?routeText(t):routeText(t)+' · '+km(remainM(t))+' км';
+    const el=it.querySelector('small');if(el)el.textContent=(t.free||t.hold?routeText(t):routeText(t)+' · '+km(remainM(t))+' км')+(stOf(t)==='predicted'&&t.prob?' · '+t.prob+'%':'');
     const need=lookOf(t)!=='confirmed',nm=it.querySelector('b'),tag=nm.querySelector('.qtag');   // «?» і колір у списку слідують за станом цілі
     if(need&&!tag)nm.insertAdjacentHTML('beforeend',' <span class="qtag">?</span>');else if(!need&&tag)tag.remove();
     const ti=it.querySelector('.ti'),col=tcol(t);if(ti&&ti.dataset.c!==col){ti.dataset.c=col;ti.innerHTML=SVG[t.type](col);}
@@ -739,7 +760,7 @@ $('#list').addEventListener('click',e=>{
 $('#clear').addEventListener('click',()=>{if(!ADMIN)return;const n=live().length;S.targets.forEach(t=>dropRuntime(t.id));S.targets=[];renderList();tick();commit();toast(`Прибрано цілей: ${n}`);});
 
 /* ───────── модалка ───────── */
-const M={mode:'add',type:'jet',id:null,status:'confirmed'};
+const M={mode:'add',type:'jet',id:null,status:'confirmed',prob:60};
 const DIRS=[['auto','Ззовні області (найближчий край)'],['first','З першого міста маршруту'],['N','З півночі'],['NE','З північного сходу'],['E','Зі сходу'],['SE','З південного сходу'],['S','З півдня'],['SW','З південного заходу'],['W','Із заходу'],['NW','З північного заходу']];
 $('#mdir').innerHTML=DIRS.map(d=>`<option value="${d[0]}">${d[1]}</option>`).join('');
 const DEFS={dir:'auto',status:'confirmed'};
@@ -799,7 +820,7 @@ function openModal(mode,id){
   if(!ADMIN)return;
   const t=id?live().find(x=>x.id===id):null;
   if(t)M.type=t.type;
-  M.status=t?stOf(t):DEFS.status;
+  M.status=t?stOf(t):DEFS.status;M.prob=t&&t.prob?t.prob:60;$('#mprob').value=M.prob;$('#mprobv').textContent=M.prob+'%';
   if(!t)$('#mdir').value=DEFS.dir;
   $('#mtitle').textContent=mode==='edit'&&t?`Змінити курс · ${TYPES[t.type].name} #${t.id}`:'Додати ціль';
   $('#mtypew').hidden=mode==='edit';$('#mdirw').hidden=mode==='edit';
@@ -809,7 +830,8 @@ function openModal(mode,id){
   syncSt();refreshModal(false);
   $('#modal').hidden=false;setTimeout(()=>{const i=$('#mroute');i.focus();i.setSelectionRange(i.value.length,i.value.length);},30);
 }
-function syncSt(){[...$('#mst').children].forEach(b=>b.classList.toggle('on',b.dataset.s===M.status));renderTypes();}
+function syncSt(){$('#mprobw').hidden=M.status!=='predicted';[...$('#mst').children].forEach(b=>b.classList.toggle('on',b.dataset.s===M.status));renderTypes();}
+$('#mprob').addEventListener('input',()=>{M.prob=+$('#mprob').value;$('#mprobv').textContent=M.prob+'%';});
 $('#mst').addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;M.status=b.dataset.s;syncSt();});
 function closeModal(){$('#modal').hidden=true;}
 $('#add').addEventListener('click',()=>openModal('add'));
@@ -823,11 +845,11 @@ $('#mform').addEventListener('submit',e=>{
   if(!parts.length||parts.some(p=>!p.town))return;
   const towns=parts.map(p=>p.town).filter((x,i,a)=>!i||x!==a[i-1]);
   if(M.mode==='add'){
-    const t=createTarget(M.type,towns,$('#mdir').value,M.status);
+    const t=createTarget(M.type,towns,$('#mdir').value,M.status,M.prob);
     toast(`${TYPES[t.type].name} #${t.id} → ${towns.map(x=>x[0]).join(' → ')}`);
   } else {
     const t=live().find(x=>x.id===M.id);
-    if(t){editRoute(t,towns,M.status);toast(`Курс #${t.id} змінено: ${towns.map(x=>x[0]).join(' → ')}`);}
+    if(t){editRoute(t,towns,M.status,M.prob);toast(`Курс #${t.id} змінено: ${towns.map(x=>x[0]).join(' → ')}`);}
   }
   closeModal();
 });
@@ -888,7 +910,7 @@ function applyData(d){
     dropRuntime(t.id);S.targets.splice(S.targets.indexOf(t),1);
   }
   for(const x of incoming.values()){
-    const t={id:x.id,type:x.type,wps:x.wps,speed:x.speed,b:x.b,t0:x.t0,hold:!!x.hold,status:stOf(x),sig:sigOf(x)};
+    const t={id:x.id,type:x.type,wps:x.wps,speed:x.speed,b:x.b,t0:x.t0,hold:!!x.hold,status:stOf(x),prob:x.prob||0,sig:sigOf(x)};
     hydrate(t);S.targets.push(t);if(!t.done)addRuntime(t);
   }
   RAIONS.forEach(r=>{r.sel.value=S.raions[r.id].manual;});
@@ -899,6 +921,24 @@ function setAdmin(v){
   ADMIN=v;document.body.classList.toggle('is-admin',v);
   map.invalidateSize();fit();tick();checkPresence();
 }
+const NET={ping:null,on:null,adm:null};
+function renderStatus(){
+  const up=navigator.onLine&&NET.ping!=null;
+  $('#stNet').innerHTML='Інтернет: '+(up?'<b class="ok">є</b>':'<b class="bad">немає</b>');
+  $('#stPing').innerHTML='Пінг: <b'+(NET.ping!=null&&NET.ping>400?' class="bad"':'')+'>'+(NET.ping!=null?NET.ping+' мс':'—')+'</b>';
+  $('#stOn').innerHTML='Онлайн: <b>'+(NET.on!=null?NET.on:'—')+'</b>';
+  $('#stAdm').innerHTML='Адмінів: <b>'+(NET.adm!=null?NET.adm:'—')+'</b>';
+}
+async function measurePing(){
+  if(!navigator.onLine){NET.ping=null;renderStatus();return;}
+  const ac=new AbortController(),to=setTimeout(()=>ac.abort(),5000),t0=performance.now();
+  try{await fetch('https://www.gstatic.com/generate_204?'+Date.now(),{mode:'no-cors',cache:'no-store',signal:ac.signal});NET.ping=Math.round(performance.now()-t0);}
+  catch(e){NET.ping=null;}
+  clearTimeout(to);renderStatus();
+}
+if(!USE_FB){NET.on=1;NET.adm=1;}
+renderStatus();measurePing();setInterval(measurePing,10000);
+addEventListener('online',measurePing);addEventListener('offline',measurePing);
 function initFirebase(){
   firebase.initializeApp(FIREBASE_CONFIG);
   const auth=firebase.auth(),fs=firebase.firestore();
@@ -948,15 +988,30 @@ function initFirebase(){
 
   function startAdmin(owner){
     setAdmin(true);document.body.classList.toggle('is-owner',owner);
-    beat();clearInterval(beatT);beatT=setInterval(beat,30000);
+    beat();heart();clearInterval(beatT);beatT=setInterval(beat,30000);
     if(owner&&!admUnsub)admUnsub=ADMS.onSnapshot(s=>{admList=s.exists?(s.data().emails||[]).map(x=>String(x).toLowerCase()):[];renderAdmins();},()=>{});
     checkPresence();
   }
   function stopAdmin(){
     clearInterval(beatT);document.body.classList.remove('is-owner');
     if(admUnsub){admUnsub();admUnsub=null;}
-    setAdmin(false);checkPresence();
+    setAdmin(false);checkPresence();heart();
   }
+  // лічильник онлайн: кожен відкритий клієнт раз на 20 с оновлює свій запис у колекції «online»
+  const ONL=fs.collection('online'),CID=(()=>{try{let v=sessionStorage.getItem('khm-cid');if(!v){v=Math.random().toString(36).slice(2,12);sessionStorage.setItem('khm-cid',v);}return v;}catch(e){return Math.random().toString(36).slice(2,12);}})();
+  let onDocs=[],onOk=false;
+  function heart(){if(document.hidden)return;ONL.doc(CID).set({t:firebase.firestore.FieldValue.serverTimestamp(),admin:!!ADMIN}).catch(()=>{});}
+  function countOnline(){
+    if(!onOk){NET.on=null;NET.adm=null;renderStatus();return;}
+    const now=Date.now();let n=0,a=0;
+    for(const d of onDocs){const ms=d.t&&typeof d.t.toMillis==='function'?d.t.toMillis():now;if(now-ms<65000){n++;if(d.admin)a++;}}
+    NET.on=n;NET.adm=a;renderStatus();
+  }
+  ONL.onSnapshot(q=>{onOk=true;onDocs=q.docs.map(x=>x.data());countOnline();
+    if(ADMIN)q.docs.forEach(x=>{const t=x.data().t;if(t&&t.toMillis&&Date.now()-t.toMillis()>600000)x.ref.delete().catch(()=>{});});},()=>{onOk=false;countOnline();});
+  setInterval(heart,20000);setInterval(countOnline,10000);heart();
+  document.addEventListener('visibilitychange',()=>{if(!document.hidden)heart();});
+  addEventListener('pagehide',()=>{ONL.doc(CID).delete().catch(()=>{});});
   auth.onAuthStateChanged(async u=>{
     me=u?String(u.email||'').toLowerCase():'';
     if(!u){stopAdmin();return;}
@@ -992,7 +1047,7 @@ function frame(now){
   requestAnimationFrame(frame);
 }
 requestAnimationFrame(frame);
-window.addEventListener('resize',()=>map.invalidateSize());
+window.addEventListener('resize',()=>{map.invalidateSize();fit();});
 window.SIM={inUkraine,lookOf,courseLL,S,map,createTarget,removeTarget,findTown,parseRoute,stepT,raionAt,inOblast,openModal,applyData,setAdmin,live};
 })();
 </script>
