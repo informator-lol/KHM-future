@@ -134,6 +134,9 @@ select:focus,input:focus{outline:2px solid #ff8a1f55;border-color:#ff8a1f}
 .tgt .ring{position:absolute;inset:2px;border-radius:50%;border:2px solid var(--c);animation:pulse 1.9s ease-out infinite}
 @keyframes pulse{0%{transform:scale(.55);opacity:.9}100%{transform:scale(1.45);opacity:0}}
 .tgt .rot{position:absolute;inset:0;display:grid;place-items:center;filter:drop-shadow(0 0 5px var(--c)) drop-shadow(0 1px 2px #000)}
+.tgt .harrow{display:none;position:absolute;left:50%;top:-30px;margin-left:-11px;filter:drop-shadow(0 0 4px var(--c));animation:bob 1.1s ease-in-out infinite}
+.tgt.is-hold .harrow{display:block}
+@keyframes bob{50%{transform:translateY(6px)}}
 .tgt .tid{position:absolute;left:50%;top:100%;transform:translate(-50%,-3px);font:800 10px/1 ui-monospace,Menlo,monospace;color:#fff;text-shadow:0 0 3px #000,0 0 3px #000}
 #toast{position:fixed;z-index:3000;left:50%;bottom:22px;transform:translate(-50%,30px);opacity:0;pointer-events:none;
   background:#1c232d;border:1px solid #333d4b;padding:10px 16px;border-radius:10px;font-weight:600;transition:.25s;max-width:92vw;text-align:center}
@@ -181,7 +184,7 @@ body:not(.fb) #logout,body:not(.fb) #lock,body.is-admin #lock{display:none!impor
     <section>
       <h2>Швидкість симуляції</h2>
       <div class="seg" id="mult"></div>
-      <p class="hint">Прискорює політ у світі симуляції. Номінальна швидкість цілі в інфо — реальна (км/год).</p>
+      <p class="hint">×1 — реальний час: 350 км/год — це лише 5,8 км за хвилину, тож шлях Шепетівка → Хмельницький (~85 км) займає близько 15 хвилин. Для швидшого перегляду став ×5 чи ×10.</p>
     </section>
   </div>
 </aside>
@@ -201,6 +204,7 @@ body:not(.fb) #logout,body:not(.fb) #lock,body.is-admin #lock{display:none!impor
     <div id="mdirw">
       <label class="lbl" for="mdir">Звідки прилітає</label>
       <select id="mdir" style="max-width:none;width:100%"></select>
+      <p class="hint">«З першого міста»: ціль стартує з першого міста маршруту й одразу летить до другого. Якщо місто одне, ціль з'являється на ньому (іконка й стрілка) і стоїть, поки не змінити курс ✎.</p>
     </div>
     <div class="actions">
       <button type="button" class="ghost" id="mcancel">Скасувати</button>
@@ -418,21 +422,21 @@ let DOC=null;                // документ Firestore (лише в режи
 document.body.classList.toggle('fb',USE_FB);
 document.body.classList.toggle('is-admin',ADMIN);
 const live=()=>S.targets.filter(t=>!t.done);
-const sigOf=x=>JSON.stringify([x.type,x.wps,x.speed,x.b,x.t0]);
+const sigOf=x=>JSON.stringify([x.type,x.wps,x.speed,x.b,x.t0,!!x.hold]);
 
 /* Ціль зберігається як знімок {b, t0}: де вона була в момент t0.
    Поточне місце кожен браузер рахує сам із часу, що минув, тож усі бачать її в одній точці. */
 function catchUp(t,cap=20000){
   const need=(Date.now()-t.t0)/1000*S.mult-t.simDone;
-  if(need<=0||t.done)return;
+  if(need<=0||t.done||t.hold)return;
   const d=Math.min(need,cap);stepT(t,d);t.simDone+=d;
 }
-function hydrate(t){t.lat=t.b.lat;t.lon=t.b.lon;t.hdg=t.b.hdg;t.idx=t.b.idx;t.done=false;t.simDone=0;catchUp(t,400000);}
+function hydrate(t){t.hold=!!t.hold;t.lat=t.b.lat;t.lon=t.b.lon;t.hdg=t.b.hdg;t.idx=t.b.idx;t.done=false;t.simDone=0;catchUp(t,400000);}
 function rebase(t){catchUp(t);t.b={lat:t.lat,lon:t.lon,hdg:t.hdg,idx:t.idx};t.t0=Date.now();t.simDone=0;}
 
 function serialize(){
   return JSON.parse(JSON.stringify({auto:S.auto,mult:S.mult,nextId:S.nextId,raions:S.raions,
-    targets:live().map(t=>{const x={id:t.id,type:t.type,wps:t.wps,speed:t.speed,b:t.b,t0:t.t0};t.sig=sigOf(x);return x;})}));
+    targets:live().map(t=>{const x={id:t.id,type:t.type,wps:t.wps,speed:t.speed,b:t.b,t0:t.t0,hold:!!t.hold};t.sig=sigOf(x);return x;})}));
 }
 function commit(){
   if(!ADMIN)return;
@@ -526,9 +530,9 @@ function fillPopup(t,el){
   set('spd',t.speed+' км/год');
   set('hdg',String(Math.round(t.hdg)%360).padStart(3,'0')+'° '+compass(t.hdg));
   set('route',routeText(t));
-  set('next',wp.name+' · '+km(distM(t.lat,t.lon,wp.lat,wp.lon))+' км');
-  set('rem',km(rem)+' км');
-  set('eta',fmtEta(rem/(t.speed/3.6*S.mult)));
+  set('next',t.hold?wp.name+' · утримує позицію':wp.name+' · '+km(distM(t.lat,t.lon,wp.lat,wp.lon))+' км');
+  set('rem',t.hold?'—':km(rem)+' км');
+  set('eta',t.hold?'на місці':fmtEta(rem/(t.speed/3.6*S.mult)));
   let nb=null,nd=Infinity;for(const x of TOWNS){const d=distM(t.lat,t.lon,x[1],x[2]);if(d<nd){nd=d;nb=x;}}
   set('near',nb[0]+' · '+km(nd)+' км');
   const ra=raionAt(t.lat,t.lon);
@@ -536,7 +540,7 @@ function fillPopup(t,el){
 }
 function addRuntime(t){
   const T=TYPES[t.type];
-  const icon=L.divIcon({className:'tgt',iconSize:[36,36],iconAnchor:[18,18],html:`<div class="ring" style="--c:${T.color}"></div><div class="rot" style="--c:${T.color}">${SVG[t.type](T.color)}</div><span class="tid">${t.id}</span>`});
+  const icon=L.divIcon({className:'tgt',iconSize:[36,36],iconAnchor:[18,18],html:`<div class="ring" style="--c:${T.color}"></div><div class="rot" style="--c:${T.color}">${SVG[t.type](T.color)}</div><svg class="harrow" viewBox="0 0 24 28" width="22" height="26" aria-hidden="true" style="--c:${T.color}"><path d="M12 26 L2 12 H8 V2 H16 V12 H22 Z" fill="${T.color}" stroke="#0b0e12" stroke-width="1.6" stroke-linejoin="round"/></svg><span class="tid">${t.id}</span>`});
   const marker=L.marker([t.lat,t.lon],{icon,zIndexOffset:1000,title:`${T.name} #${t.id}`}).addTo(map);
   const line=L.polyline([],{color:T.color,weight:1.6,opacity:.75,dashArray:'4 7',interactive:false}).addTo(map);
   const trail=L.polyline([],{color:T.color,weight:2.5,opacity:.3,interactive:false}).addTo(map);
@@ -545,21 +549,31 @@ function addRuntime(t){
   marker.on('popupopen',()=>fillPopup(t,pop));
   const rt={marker,line,trail,tp:[],pop,rot:marker.getElement().querySelector('.rot')};
   RT.set(t.id,rt);
+  marker.getElement().classList.toggle('is-hold',!!t.hold);
   rt.rot.style.transform=`rotate(${t.hdg}deg)`;
   line.setLatLngs([[t.lat,t.lon],...t.wps.slice(t.idx).map(w=>[w.lat,w.lon])]);
 }
 function createTarget(type,towns,dirKey){
   const T=TYPES[type];
   const wps=towns.map(x=>({name:x[0],lat:x[1],lon:x[2]}));
-  const sp=spawnPoint(wps[0],dirKey);
-  const t={id:S.nextId++,type,wps,speed:Math.round(rand(T.speed[0],T.speed[1])/5)*5,
-    b:{lat:sp.lat,lon:sp.lon,hdg:bearing(sp.lat,sp.lon,wps[0].lat,wps[0].lon),idx:0},t0:Date.now()};
+  let b,hold=false;
+  if(dirKey==='first'){                       // старт із першого міста маршруту
+    const a=wps[0];
+    if(wps.length===1){hold=true;b={lat:a.lat,lon:a.lon,hdg:bearing(a.lat,a.lon,49.45,27.0),idx:0};}   // одне місто: ціль стоїть на ньому
+    else b={lat:a.lat,lon:a.lon,hdg:bearing(a.lat,a.lon,wps[1].lat,wps[1].lon),idx:1};                  // курс одразу на друге місто
+  }else{
+    const sp=spawnPoint(wps[0],dirKey);
+    b={lat:sp.lat,lon:sp.lon,hdg:bearing(sp.lat,sp.lon,wps[0].lat,wps[0].lon),idx:0};
+  }
+  const t={id:S.nextId++,type,wps,speed:Math.round(rand(T.speed[0],T.speed[1])/5)*5,b,t0:Date.now(),hold};
   hydrate(t);S.targets.push(t);addRuntime(t);renderList();tick();commit();
   return t;
 }
 function editRoute(t,towns){
   catchUp(t);
+  const was=t.hold;
   t.wps=towns.map(x=>({name:x[0],lat:x[1],lon:x[2]}));
+  t.hold=!!was&&towns.length===1&&distM(t.lat,t.lon,towns[0][1],towns[0][2])<1500;   // стоїть, поки курс не змінять на інше місце
   t.b={lat:t.lat,lon:t.lon,hdg:t.hdg,idx:0};t.t0=Date.now();t.simDone=0;t.idx=0;t.done=false;
   const rt=RT.get(t.id);if(rt){fillPopup(t,rt.pop);}
   renderList();tick();commit();
@@ -595,7 +609,7 @@ $('#modeLbl').textContent=USE_FB?'онлайн':'локальний режим';
 $('#collapse').addEventListener('click',()=>{const p=$('#panel');p.classList.toggle('collapsed');$('#collapse').textContent=p.classList.contains('collapsed')?'▸':'▾';});
 
 const mbox=$('#mult');
-[1,5,10,30,60].forEach(m=>{const b=document.createElement('button');b.type='button';b.textContent='×'+m;b.dataset.m=m;b.addEventListener('click',()=>{if(!ADMIN)return;live().forEach(rebase);S.mult=m;syncMult();commit();});mbox.appendChild(b);});
+[1,5,10,30,60].forEach(m=>{const b=document.createElement('button');b.type='button';b.textContent='×'+m;b.title=m===1?'Реальний час':'Прискорення ×'+m;b.dataset.m=m;b.addEventListener('click',()=>{if(!ADMIN)return;live().forEach(rebase);S.mult=m;syncMult();commit();});mbox.appendChild(b);});
 function syncMult(){[...mbox.children].forEach(b=>b.classList.toggle('on',+b.dataset.m===S.mult));$('#multLbl').textContent='×'+S.mult;}
 syncMult();
 
@@ -624,8 +638,10 @@ $('#clear').addEventListener('click',()=>{if(!ADMIN)return;const n=live().length
 
 /* ───────── модалка ───────── */
 const M={mode:'add',type:'jet',id:null};
-const DIRS=[['auto','Авто (найближчий край області)'],['N','З півночі'],['NE','З північного сходу'],['E','Зі сходу'],['SE','З південного сходу'],['S','З півдня'],['SW','З південного заходу'],['W','Із заходу'],['NW','З північного заходу']];
+const DIRS=[['auto','Авто (найближчий край області)'],['first','З першого міста маршруту'],['N','З півночі'],['NE','З північного сходу'],['E','Зі сходу'],['SE','З південного сходу'],['S','З півдня'],['SW','З південного заходу'],['W','Із заходу'],['NW','З північного заходу']];
 $('#mdir').innerHTML=DIRS.map(d=>`<option value="${d[0]}">${d[1]}</option>`).join('');
+try{const sv=localStorage.getItem('khm-dir');if(sv&&DIRS.some(d=>d[0]===sv))$('#mdir').value=sv;}catch(e){}
+$('#mdir').addEventListener('change',()=>{try{localStorage.setItem('khm-dir',$('#mdir').value);}catch(e){}});
 function renderTypes(){
   const box=$('#mtype');box.innerHTML='';
   for(const k of ORDER){
@@ -758,7 +774,7 @@ function applyData(d){
     dropRuntime(t.id);S.targets.splice(S.targets.indexOf(t),1);
   }
   for(const x of incoming.values()){
-    const t={id:x.id,type:x.type,wps:x.wps,speed:x.speed,b:x.b,t0:x.t0,sig:sigOf(x)};
+    const t={id:x.id,type:x.type,wps:x.wps,speed:x.speed,b:x.b,t0:x.t0,hold:!!x.hold,sig:sigOf(x)};
     hydrate(t);S.targets.push(t);if(!t.done)addRuntime(t);
   }
   RAIONS.forEach(r=>{r.sel.value=S.raions[r.id].manual;});
@@ -798,6 +814,7 @@ function frame(now){
     if(t.done){removeTarget(t.id,'arrived');continue;}
     const rt=RT.get(t.id);if(!rt)continue;
     rt.marker.setLatLng([t.lat,t.lon]);
+    rt.marker.getElement().classList.toggle('is-hold',!!t.hold);
     rt.rot.style.transform=`rotate(${t.hdg}deg)`;
     rt.line.setLatLngs([[t.lat,t.lon],...t.wps.slice(t.idx).map(w=>[w.lat,w.lon])]);
     if(pushTrail){rt.tp.push([t.lat,t.lon]);if(rt.tp.length>70)rt.tp.shift();rt.trail.setLatLngs(rt.tp);}
