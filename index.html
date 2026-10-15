@@ -137,6 +137,13 @@ select:focus,input:focus{outline:2px solid #ff8a1f55;border-color:#ff8a1f}
 .tgt .harrow{display:none;position:absolute;left:50%;top:-30px;margin-left:-11px;filter:drop-shadow(0 0 4px var(--c));animation:bob 1.1s ease-in-out infinite}
 .tgt.is-hold .harrow{display:block}
 @keyframes bob{50%{transform:translateY(6px)}}
+.tgt .qm{display:none;position:absolute;right:-5px;top:-7px;width:17px;height:17px;border-radius:50%;background:#3b9bff;color:#fff;font:800 12px/17px system-ui;text-align:center;box-shadow:0 0 0 2px #0b0e12}
+.tgt.is-pred .qm{display:block}
+.qtag{display:inline-block;background:#3b9bff;color:#fff;border-radius:50%;width:15px;height:15px;font:800 11px/15px system-ui;text-align:center;margin-left:4px;vertical-align:1px}
+.admrow{display:flex;gap:8px;margin-top:8px}.admrow input{flex:1;min-width:0}
+.admitem{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:5px 0;font-size:13px;word-break:break-all}
+#offline{position:absolute;z-index:950;top:44px;left:50%;transform:translateX(-50%);background:rgba(58,18,18,.95);border:1px solid #7a2a2a;color:#ffb4b4;
+  padding:8px 14px;border-radius:12px;font:700 12.5px/1.3 system-ui;max-width:min(92vw,520px);text-align:center;backdrop-filter:blur(6px);box-shadow:0 6px 24px rgba(0,0,0,.45)}
 .tgt .tid{position:absolute;left:50%;top:100%;transform:translate(-50%,-3px);font:800 10px/1 ui-monospace,Menlo,monospace;color:#fff;text-shadow:0 0 3px #000,0 0 3px #000}
 #toast{position:fixed;z-index:3000;left:50%;bottom:22px;transform:translate(-50%,30px);opacity:0;pointer-events:none;
   background:#1c232d;border:1px solid #333d4b;padding:10px 16px;border-radius:10px;font-weight:600;transition:.25s;max-width:92vw;text-align:center}
@@ -152,11 +159,13 @@ select:focus,input:focus{outline:2px solid #ff8a1f55;border-color:#ff8a1f}
 /* розділення ролей (завжди в кінці, з !important): глядач не бачить ні панелі, ні кнопок керування */
 body:not(.is-admin) #panel,body:not(.is-admin) #modal,body:not(.is-admin) .pinfo .pa{display:none!important}
 body:not(.fb) #logout,body:not(.fb) #lock,body.is-admin #lock{display:none!important}
+body:not(.is-owner) #adminsec{display:none!important}
 </style>
 </head>
 <body>
 <div id="map"></div>
 <div id="badge"><i></i>Симуляція · вигадані дані, не офіційні повідомлення</div>
+<div id="offline" hidden role="alert">⚠ Адміністратора немає в мережі — карта наразі не оновлюється</div>
 <div id="clock"></div>
 <button class="ib" id="lock" title="Вхід для адміністратора" aria-label="Вхід для адміністратора">🔒</button>
 
@@ -184,7 +193,21 @@ body:not(.fb) #logout,body:not(.fb) #lock,body.is-admin #lock{display:none!impor
     <section>
       <h2>Швидкість симуляції</h2>
       <div class="seg" id="mult"></div>
-      <p class="hint">×1 — реальний час: 350 км/год — це лише 5,8 км за хвилину, тож шлях Шепетівка → Хмельницький (~85 км) займає близько 15 хвилин. Для швидшого перегляду став ×5 чи ×10.</p>
+      <p class="hint" id="multHint">×1 — реальний час: 350 км/год — це лише 5,8 км за хвилину, тож шлях Шепетівка → Хмельницький (~85 км) займає близько 15 хвилин. Для швидшого перегляду став ×5 чи ×10.</p>
+    </section>
+    <section id="defsec">
+      <h2>Типові налаштування нової цілі</h2>
+      <label class="lbl" for="defDir" style="margin-top:0">Звідки з'являється</label>
+      <select id="defDir" style="max-width:none;width:100%"></select>
+      <span class="lbl">Статус курсу</span>
+      <div class="seg" id="defSt"><button type="button" data-s="predicted">? Непідтверджений</button><button type="button" data-s="confirmed">Підтверджений</button></div>
+      <p class="hint">Це початкові значення у формі «Додати ціль». Для кожної цілі їх можна змінити там же.</p>
+    </section>
+    <section id="adminsec">
+      <h2>Адміністратори <span class="n" id="admcnt">1</span></h2>
+      <div id="admlist"></div>
+      <form id="admform" class="admrow"><input type="text" id="admemail" placeholder="Gmail друга" inputmode="email" autocapitalize="off" spellcheck="false"><button class="ghost" type="submit">Додати</button></form>
+      <p class="hint">Друг заходить через 🔒 своїм Google-акаунтом і бачить панель. Додавати й прибирати адмінів може лише власник.</p>
     </section>
   </div>
 </aside>
@@ -201,6 +224,11 @@ body:not(.fb) #logout,body:not(.fb) #lock,body.is-admin #lock{display:none!impor
     <div id="chips"></div>
     <div id="sugg"></div>
     <p class="hint">Одне місце — ціль летить прямо туди. Кілька — по черзі, розділяйте «→», комою або « - ». Міста, селища й села шукаються по мапі, помилки в назвах виправляються самі. Якщо назв кілька — виберіть свою з підказок.</p>
+    <div id="mstw">
+      <span class="lbl">Статус курсу</span>
+      <div class="seg" id="mst"><button type="button" data-s="predicted">? Непідтверджений</button><button type="button" data-s="confirmed">Підтверджений</button></div>
+      <p class="hint">Синій зі знаком «?» — курс лише передбачений. Червоний без знака — підтверджений. Змінити можна будь-коли через ✎.</p>
+    </div>
     <div id="mdirw">
       <label class="lbl" for="mdir">Звідки прилітає</label>
       <select id="mdir" style="max-width:none;width:100%"></select>
@@ -400,6 +428,9 @@ const TYPES = {
   drone:  {name:'БПЛА',            color:'#ff8a1f', speed:[160,190], turn:6, hint:'160–190 км/год'},
 };
 const ORDER = ['jet','missile','drone'];
+const ST={predicted:{color:'#3b9bff',name:'Непідтверджений'},confirmed:{color:'#ff3b3b',name:'Підтверджений'}};
+const stOf=t=>t&&t.status==='predicted'?'predicted':'confirmed';
+const tcol=t=>ST[stOf(t)].color;
 const SVG = {
   drone:c=>`<svg viewBox="0 0 40 40" width="30" height="30" aria-hidden="true"><path d="M20 2 L38 35 L20 29 L2 35 Z" fill="${c}" stroke="#0b0e12" stroke-width="1.6" stroke-linejoin="round"/><path d="M20 6 V28" stroke="#0b0e12" stroke-width="1.4" opacity=".55"/><path d="M2 35 l4 3.5 M38 35 l-4 3.5" stroke="${c}" stroke-width="2.6" stroke-linecap="round"/></svg>`,
   jet:c=>`<svg viewBox="0 0 40 48" width="28" height="34" aria-hidden="true"><path d="M20 1 L31 30 L25 28 L25 36 L15 36 L15 28 L9 30 Z" fill="${c}" stroke="#0b0e12" stroke-width="1.6" stroke-linejoin="round"/><rect x="16.5" y="29" width="7" height="8" rx="1.5" fill="#0b0e12" opacity=".55"/><path d="M16.5 38 L20 47 L23.5 38 Z" fill="#fff" opacity=".92"/><path d="M18.3 38 L20 43.5 L21.7 38 Z" fill="#ffb347"/></svg>`,
@@ -421,8 +452,10 @@ let ADMIN=!USE_FB;           // локальний режим: власник с
 let DOC=null;                // документ Firestore (лише в режимі Firebase)
 document.body.classList.toggle('fb',USE_FB);
 document.body.classList.toggle('is-admin',ADMIN);
+let checkPresence=()=>{};
+const OFFLINE_MS=150000;     // адмін мовчить довше за це — вважаємо, що його немає в мережі
 const live=()=>S.targets.filter(t=>!t.done);
-const sigOf=x=>JSON.stringify([x.type,x.wps,x.speed,x.b,x.t0,!!x.hold]);
+const sigOf=x=>JSON.stringify([x.type,x.wps,x.speed,x.b,x.t0,!!x.hold,stOf(x)]);
 
 /* Ціль зберігається як знімок {b, t0}: де вона була в момент t0.
    Поточне місце кожен браузер рахує сам із часу, що минув, тож усі бачать її в одній точці. */
@@ -436,7 +469,7 @@ function rebase(t){catchUp(t);t.b={lat:t.lat,lon:t.lon,hdg:t.hdg,idx:t.idx};t.t0
 
 function serialize(){
   return JSON.parse(JSON.stringify({auto:S.auto,mult:S.mult,nextId:S.nextId,raions:S.raions,
-    targets:live().map(t=>{const x={id:t.id,type:t.type,wps:t.wps,speed:t.speed,b:t.b,t0:t.t0,hold:!!t.hold};t.sig=sigOf(x);return x;})}));
+    targets:live().map(t=>{const x={id:t.id,type:t.type,wps:t.wps,speed:t.speed,b:t.b,t0:t.t0,hold:!!t.hold,status:stOf(t)};t.sig=sigOf(x);return x;})}));
 }
 function commit(){
   if(!ADMIN)return;
@@ -516,8 +549,8 @@ function labelRaion(r,since){
 const RT=new Map();
 function buildPopup(t){
   const T=TYPES[t.type],el=document.createElement('div');el.className='pinfo';
-  el.innerHTML=`<div class="ph"><span class="pi">${SVG[t.type](T.color)}</span><div><b>${T.name}</b><small>Ціль #${t.id}</small></div></div>
-  <dl><dt>Швидкість</dt><dd data-f="spd"></dd><dt>Курс</dt><dd data-f="hdg"></dd><dt>Маршрут</dt><dd data-f="route"></dd>
+  el.innerHTML=`<div class="ph"><span class="pi">${SVG[t.type](tcol(t))}</span><div><b>${T.name}</b><small>Ціль #${t.id}</small></div></div>
+  <dl><dt>Статус курсу</dt><dd data-f="st"></dd><dt>Швидкість</dt><dd data-f="spd"></dd><dt>Курс</dt><dd data-f="hdg"></dd><dt>Маршрут</dt><dd data-f="route"></dd>
   <dt>Наступна точка</dt><dd data-f="next"></dd><dt>До кінця маршруту</dt><dd data-f="rem"></dd><dt>Прибуде через</dt><dd data-f="eta"></dd>
   <dt>Поблизу</dt><dd data-f="near"></dd><dt>Район</dt><dd data-f="raion"></dd></dl>
   <div class="pa"><button type="button" class="sm" data-a="edit">✎ Змінити курс</button><button type="button" class="sm danger" data-a="del">✕ Забрати</button></div>`;
@@ -528,6 +561,8 @@ function fillPopup(t,el){
   const set=(f,v)=>{const n=el.querySelector(`[data-f="${f}"]`);if(n)n.textContent=v;};
   const wp=t.wps[t.idx],rem=remainM(t);
   set('spd',t.speed+' км/год');
+  set('st',stOf(t)==='predicted'?'Непідтверджений ?':'Підтверджений');
+  const pi=el.querySelector('.pi');if(pi)pi.innerHTML=SVG[t.type](tcol(t));
   set('hdg',String(Math.round(t.hdg)%360).padStart(3,'0')+'° '+compass(t.hdg));
   set('route',routeText(t));
   set('next',t.hold?wp.name+' · утримує позицію':wp.name+' · '+km(distM(t.lat,t.lon,wp.lat,wp.lon))+' км');
@@ -538,22 +573,34 @@ function fillPopup(t,el){
   const ra=raionAt(t.lat,t.lon);
   set('raion',ra?raionName(ra):(inOblast(t.lat,t.lon)?'—':'поза межами області'));
 }
+function syncLook(t,rt){
+  const col=tcol(t),pred=stOf(t)==='predicted',el=rt.marker.getElement();
+  el.classList.toggle('is-pred',pred);
+  if(rt.col===col&&rt.pred===pred)return;
+  rt.col=col;rt.pred=pred;
+  el.querySelector('.ring').style.setProperty('--c',col);
+  rt.rot.style.setProperty('--c',col);rt.rot.innerHTML=SVG[t.type](col);
+  const ha=el.querySelector('.harrow');ha.style.setProperty('--c',col);ha.querySelector('path').setAttribute('fill',col);
+  rt.line.setStyle({color:col,dashArray:pred?'4 7':null,weight:pred?1.6:2.4,opacity:pred?.8:.95});
+  rt.trail.setStyle({color:col});
+}
 function addRuntime(t){
-  const T=TYPES[t.type];
-  const icon=L.divIcon({className:'tgt',iconSize:[36,36],iconAnchor:[18,18],html:`<div class="ring" style="--c:${T.color}"></div><div class="rot" style="--c:${T.color}">${SVG[t.type](T.color)}</div><svg class="harrow" viewBox="0 0 24 28" width="22" height="26" aria-hidden="true" style="--c:${T.color}"><path d="M12 26 L2 12 H8 V2 H16 V12 H22 Z" fill="${T.color}" stroke="#0b0e12" stroke-width="1.6" stroke-linejoin="round"/></svg><span class="tid">${t.id}</span>`});
+  const T=TYPES[t.type],col=tcol(t);
+  const icon=L.divIcon({className:'tgt',iconSize:[36,36],iconAnchor:[18,18],html:`<div class="ring" style="--c:${col}"></div><div class="rot" style="--c:${col}">${SVG[t.type](col)}</div><svg class="harrow" viewBox="0 0 24 28" width="22" height="26" aria-hidden="true" style="--c:${col}"><path d="M12 26 L2 12 H8 V2 H16 V12 H22 Z" fill="${col}" stroke="#0b0e12" stroke-width="1.6" stroke-linejoin="round"/></svg><span class="tid">${t.id}</span><b class="qm">?</b>`});
   const marker=L.marker([t.lat,t.lon],{icon,zIndexOffset:1000,title:`${T.name} #${t.id}`}).addTo(map);
-  const line=L.polyline([],{color:T.color,weight:1.6,opacity:.75,dashArray:'4 7',interactive:false}).addTo(map);
-  const trail=L.polyline([],{color:T.color,weight:2.5,opacity:.3,interactive:false}).addTo(map);
+  const line=L.polyline([],{color:col,weight:1.6,opacity:.75,dashArray:'4 7',interactive:false}).addTo(map);
+  const trail=L.polyline([],{color:col,weight:2.5,opacity:.3,interactive:false}).addTo(map);
   const pop=buildPopup(t);
   marker.bindPopup(pop,{className:'tpop',offset:[0,-8],autoPanPadding:[30,30]});
   marker.on('popupopen',()=>fillPopup(t,pop));
   const rt={marker,line,trail,tp:[],pop,rot:marker.getElement().querySelector('.rot')};
   RT.set(t.id,rt);
+  syncLook(t,rt);
   marker.getElement().classList.toggle('is-hold',!!t.hold);
   rt.rot.style.transform=`rotate(${t.hdg}deg)`;
   line.setLatLngs([[t.lat,t.lon],...t.wps.slice(t.idx).map(w=>[w.lat,w.lon])]);
 }
-function createTarget(type,towns,dirKey){
+function createTarget(type,towns,dirKey,status){
   const T=TYPES[type];
   const wps=towns.map(x=>({name:x[0],lat:x[1],lon:x[2]}));
   let b,hold=false;
@@ -565,12 +612,13 @@ function createTarget(type,towns,dirKey){
     const sp=spawnPoint(wps[0],dirKey);
     b={lat:sp.lat,lon:sp.lon,hdg:bearing(sp.lat,sp.lon,wps[0].lat,wps[0].lon),idx:0};
   }
-  const t={id:S.nextId++,type,wps,speed:Math.round(rand(T.speed[0],T.speed[1])/5)*5,b,t0:Date.now(),hold};
+  const t={id:S.nextId++,type,wps,speed:Math.round(rand(T.speed[0],T.speed[1])/5)*5,b,t0:Date.now(),hold,status:status==='predicted'?'predicted':'confirmed'};
   hydrate(t);S.targets.push(t);addRuntime(t);renderList();tick();commit();
   return t;
 }
-function editRoute(t,towns){
+function editRoute(t,towns,status){
   catchUp(t);
+  if(status)t.status=status==='predicted'?'predicted':'confirmed';
   const was=t.hold;
   t.wps=towns.map(x=>({name:x[0],lat:x[1],lon:x[2]}));
   t.hold=!!was&&towns.length===1&&distM(t.lat,t.lon,towns[0][1],towns[0][2])<1500;   // стоїть, поки курс не змінять на інше місце
@@ -619,7 +667,7 @@ function renderList(){
   if(!live().length){box.innerHTML='<p class="empty">Активних цілей немає</p>';return;}
   for(const t of live()){
     const T=TYPES[t.type],d=document.createElement('div');d.className='titem';d.dataset.id=t.id;
-    d.innerHTML=`<span class="ti">${SVG[t.type](T.color)}</span><div><b>${T.name} #${t.id}</b><small></small></div><button class="ib" data-a="edit" title="Змінити курс" aria-label="Змінити курс">✎</button><button class="ib x" data-a="del" title="Забрати ціль" aria-label="Забрати ціль">✕</button>`;
+    d.innerHTML=`<span class="ti">${SVG[t.type](tcol(t))}</span><div><b>${T.name} #${t.id}${stOf(t)==='predicted'?' <span class="qtag">?</span>':''}</b><small></small></div><button class="ib" data-a="edit" title="Змінити курс" aria-label="Змінити курс">✎</button><button class="ib x" data-a="del" title="Забрати ціль" aria-label="Забрати ціль">✕</button>`;
     box.appendChild(d);
   }
   updateList();
@@ -637,16 +685,23 @@ $('#list').addEventListener('click',e=>{
 $('#clear').addEventListener('click',()=>{if(!ADMIN)return;const n=live().length;S.targets.forEach(t=>dropRuntime(t.id));S.targets=[];renderList();tick();commit();toast(`Прибрано цілей: ${n}`);});
 
 /* ───────── модалка ───────── */
-const M={mode:'add',type:'jet',id:null};
-const DIRS=[['auto','Авто (найближчий край області)'],['first','З першого міста маршруту'],['N','З півночі'],['NE','З північного сходу'],['E','Зі сходу'],['SE','З південного сходу'],['S','З півдня'],['SW','З південного заходу'],['W','Із заходу'],['NW','З північного заходу']];
+const M={mode:'add',type:'jet',id:null,status:'confirmed'};
+const DIRS=[['auto','Ззовні області (найближчий край)'],['first','З першого міста маршруту'],['N','З півночі'],['NE','З північного сходу'],['E','Зі сходу'],['SE','З південного сходу'],['S','З півдня'],['SW','З південного заходу'],['W','Із заходу'],['NW','З північного заходу']];
 $('#mdir').innerHTML=DIRS.map(d=>`<option value="${d[0]}">${d[1]}</option>`).join('');
-try{const sv=localStorage.getItem('khm-dir');if(sv&&DIRS.some(d=>d[0]===sv))$('#mdir').value=sv;}catch(e){}
-$('#mdir').addEventListener('change',()=>{try{localStorage.setItem('khm-dir',$('#mdir').value);}catch(e){}});
+const DEFS={dir:'auto',status:'confirmed'};
+try{const d=JSON.parse(localStorage.getItem('khm-defs'));if(d){if(DIRS.some(x=>x[0]===d.dir))DEFS.dir=d.dir;if(d.status==='predicted'||d.status==='confirmed')DEFS.status=d.status;}}catch(e){}
+const saveDefs=()=>{try{localStorage.setItem('khm-defs',JSON.stringify(DEFS));}catch(e){}};
+$('#defDir').innerHTML=DIRS.map(d=>`<option value="${d[0]}">${d[1]}</option>`).join('');
+$('#defDir').value=DEFS.dir;$('#mdir').value=DEFS.dir;
+$('#defDir').addEventListener('change',()=>{DEFS.dir=$('#defDir').value;saveDefs();});
+const syncDefSt=()=>[...$('#defSt').children].forEach(b=>b.classList.toggle('on',b.dataset.s===DEFS.status));
+$('#defSt').addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;DEFS.status=b.dataset.s;saveDefs();syncDefSt();});
+syncDefSt();
 function renderTypes(){
   const box=$('#mtype');box.innerHTML='';
   for(const k of ORDER){
     const T=TYPES[k],b=document.createElement('button');b.type='button';b.className=k===M.type?'on':'';
-    b.innerHTML=`${SVG[k](T.color)}<span>${T.name}<small>${T.hint}</small></span>`;
+    b.innerHTML=`${SVG[k](ST[M.status].color)}<span>${T.name}<small>${T.hint}</small></span>`;
     b.addEventListener('click',()=>{M.type=k;renderTypes();});box.appendChild(b);
   }
 }
@@ -690,14 +745,18 @@ function openModal(mode,id){
   if(!ADMIN)return;
   const t=id?live().find(x=>x.id===id):null;
   if(t)M.type=t.type;
+  M.status=t?stOf(t):DEFS.status;
+  if(!t)$('#mdir').value=DEFS.dir;
   $('#mtitle').textContent=mode==='edit'&&t?`Змінити курс · ${TYPES[t.type].name} #${t.id}`:'Додати ціль';
   $('#mtypew').hidden=mode==='edit';$('#mdirw').hidden=mode==='edit';
   $('#msave').textContent=mode==='edit'?'Зберегти курс':'Додати ціль';
   if(t)t.wps.forEach(w=>PICK.set(stripKind(w.name),[w.name,w.lat,w.lon,3,[]]));   // точки вже відомі — не шукати заново
   $('#mroute').value=t?t.wps.slice(t.idx).map(w=>w.name).join(' → '):'';
-  renderTypes();refreshModal(false);
+  syncSt();refreshModal(false);
   $('#modal').hidden=false;setTimeout(()=>{const i=$('#mroute');i.focus();i.setSelectionRange(i.value.length,i.value.length);},30);
 }
+function syncSt(){[...$('#mst').children].forEach(b=>b.classList.toggle('on',b.dataset.s===M.status));renderTypes();}
+$('#mst').addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;M.status=b.dataset.s;syncSt();});
 function closeModal(){$('#modal').hidden=true;}
 $('#add').addEventListener('click',()=>openModal('add'));
 $('#mcancel').addEventListener('click',closeModal);
@@ -710,11 +769,11 @@ $('#mform').addEventListener('submit',e=>{
   if(!parts.length||parts.some(p=>!p.town))return;
   const towns=parts.map(p=>p.town).filter((x,i,a)=>!i||x!==a[i-1]);
   if(M.mode==='add'){
-    const t=createTarget(M.type,towns,$('#mdir').value);
+    const t=createTarget(M.type,towns,$('#mdir').value,M.status);
     toast(`${TYPES[t.type].name} #${t.id} → ${towns.map(x=>x[0]).join(' → ')}`);
   } else {
     const t=live().find(x=>x.id===M.id);
-    if(t){editRoute(t,towns);toast(`Курс #${t.id} змінено: ${towns.map(x=>x[0]).join(' → ')}`);}
+    if(t){editRoute(t,towns,M.status);toast(`Курс #${t.id} змінено: ${towns.map(x=>x[0]).join(' → ')}`);}
   }
   closeModal();
 });
@@ -728,10 +787,11 @@ function autoLevels(){
   if(!S.auto)return a;
   for(const t of live()){
     const cur=raionAt(t.lat,t.lon),inside=!!cur||inOblast(t.lat,t.lon);
-    if(cur)a[cur]=3;
+    const cap=stOf(t)==='predicted'?1:3;
+    if(cur)a[cur]=Math.max(a[cur],Math.min(3,cap));
     for(let i=t.idx;i<t.wps.length;i++){
       const rr=raionAt(t.wps[i].lat,t.wps[i].lon);if(!rr)continue;
-      const lv=inside?2:1;if(a[rr]<lv)a[rr]=lv;
+      const lv=Math.min(cap,inside?2:1);if(a[rr]<lv)a[rr]=lv;
     }
   }
   return a;
@@ -774,7 +834,7 @@ function applyData(d){
     dropRuntime(t.id);S.targets.splice(S.targets.indexOf(t),1);
   }
   for(const x of incoming.values()){
-    const t={id:x.id,type:x.type,wps:x.wps,speed:x.speed,b:x.b,t0:x.t0,hold:!!x.hold,sig:sigOf(x)};
+    const t={id:x.id,type:x.type,wps:x.wps,speed:x.speed,b:x.b,t0:x.t0,hold:!!x.hold,status:stOf(x),sig:sigOf(x)};
     hydrate(t);S.targets.push(t);if(!t.done)addRuntime(t);
   }
   RAIONS.forEach(r=>{r.sel.value=S.raions[r.id].manual;});
@@ -783,19 +843,74 @@ function applyData(d){
 function setAdmin(v){
   if(ADMIN===v)return;
   ADMIN=v;document.body.classList.toggle('is-admin',v);
-  map.invalidateSize();fit();tick();
+  map.invalidateSize();fit();tick();checkPresence();
 }
 function initFirebase(){
   firebase.initializeApp(FIREBASE_CONFIG);
-  const auth=firebase.auth();
-  DOC=firebase.firestore().collection('sim').doc('state');
+  const auth=firebase.auth(),fs=firebase.firestore();
+  DOC=fs.collection('sim').doc('state');
+  const PRES=fs.collection('sim').doc('presence'),ADMS=fs.collection('config').doc('admins');
+  const OWNER=String(ADMIN_EMAIL||'').trim().toLowerCase();
+  let me='',presMs=0,presLoaded=false,beatT=null,admUnsub=null,admList=[];
+
   DOC.onSnapshot(snap=>{
     if(snap.metadata.hasPendingWrites)return;    // власний запис, уже застосований
     if(snap.exists)applyData(snap.data());
   },err=>toast('Немає зв\'язку із сервером ('+(err.code||err.message)+')'));
-  auth.onAuthStateChanged(u=>{
-    if(u&&ADMIN_EMAIL&&u.email===ADMIN_EMAIL)setAdmin(true);
-    else{if(u){toast('Цей акаунт не має доступу до адмін-панелі');auth.signOut();}setAdmin(false);}
+
+  // «серцебиття»: поки адмін відкрив сторінку, він раз на 30 с оновлює час; глядачі бачать, чи він на зв'язку
+  PRES.onSnapshot(s=>{
+    presLoaded=true;
+    const d=s.exists?s.data():null;
+    if(d&&d.t&&typeof d.t.toMillis==='function')presMs=d.t.toMillis();
+    else if(!d)presMs=0;
+    checkPresence();
+  },()=>{});
+  checkPresence=()=>{$('#offline').hidden=!(presLoaded&&!ADMIN&&Date.now()-presMs>OFFLINE_MS);};
+  setInterval(checkPresence,5000);
+  const beat=()=>{if(ADMIN)PRES.set({t:firebase.firestore.FieldValue.serverTimestamp(),by:me}).catch(()=>{});};
+  document.addEventListener('visibilitychange',()=>{if(!document.hidden)beat();});
+
+  function renderAdmins(){
+    $('#admcnt').textContent=admList.length+1;
+    const box=$('#admlist');box.innerHTML='';
+    const add=(em,own)=>{
+      const r=document.createElement('div');r.className='admitem';
+      const s=document.createElement('span');s.textContent=em+(own?' · власник':'');r.appendChild(s);
+      if(!own){const b=document.createElement('button');b.type='button';b.className='ib x';b.textContent='✕';b.title='Прибрати адміна';
+        b.addEventListener('click',()=>saveAdmins(admList.filter(x=>x!==em)));r.appendChild(b);}
+      box.appendChild(r);
+    };
+    add(OWNER,true);admList.forEach(e=>add(e,false));
+  }
+  const saveAdmins=list=>ADMS.set({emails:list}).then(()=>toast('Список адмінів оновлено')).catch(e=>toast('Не вдалося зберегти: '+(e.code||e.message)));
+  $('#admform').addEventListener('submit',e=>{
+    e.preventDefault();
+    const em=$('#admemail').value.trim().toLowerCase();
+    if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(em)){toast('Невірна адреса пошти');return;}
+    if(em===OWNER||admList.includes(em)){toast('Ця пошта вже в списку');return;}
+    saveAdmins([...admList,em]);$('#admemail').value='';
+  });
+
+  function startAdmin(owner){
+    setAdmin(true);document.body.classList.toggle('is-owner',owner);
+    beat();clearInterval(beatT);beatT=setInterval(beat,30000);
+    if(owner&&!admUnsub)admUnsub=ADMS.onSnapshot(s=>{admList=s.exists?(s.data().emails||[]).map(x=>String(x).toLowerCase()):[];renderAdmins();},()=>{});
+    checkPresence();
+  }
+  function stopAdmin(){
+    clearInterval(beatT);document.body.classList.remove('is-owner');
+    if(admUnsub){admUnsub();admUnsub=null;}
+    setAdmin(false);checkPresence();
+  }
+  auth.onAuthStateChanged(async u=>{
+    me=u?String(u.email||'').toLowerCase():'';
+    if(!u){stopAdmin();return;}
+    if(OWNER&&me===OWNER){startAdmin(true);return;}
+    let ok=false;                                  // друзі-адміни: читання списку дозволене лише їм (правила Firestore)
+    try{const s=await ADMS.get();ok=!!(s.exists&&(s.data().emails||[]).map(x=>String(x).toLowerCase()).includes(me));}catch(e){}
+    if(ok)startAdmin(false);
+    else{toast('Цей акаунт не має доступу до адмін-панелі');auth.signOut();}
   });
   $('#lock').addEventListener('click',()=>auth.signInWithPopup(new firebase.auth.GoogleAuthProvider()).catch(e=>toast('Вхід не вдався ('+(e.code||e.message)+')')));
   $('#logout').addEventListener('click',()=>auth.signOut());
@@ -814,6 +929,7 @@ function frame(now){
     if(t.done){removeTarget(t.id,'arrived');continue;}
     const rt=RT.get(t.id);if(!rt)continue;
     rt.marker.setLatLng([t.lat,t.lon]);
+    syncLook(t,rt);
     rt.marker.getElement().classList.toggle('is-hold',!!t.hold);
     rt.rot.style.transform=`rotate(${t.hdg}deg)`;
     rt.line.setLatLngs([[t.lat,t.lon],...t.wps.slice(t.idx).map(w=>[w.lat,w.lon])]);
