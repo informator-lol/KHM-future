@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#0e1217">
-<title>Хмельницька область · симуляція загроз</title>
+<title>Хмельницька область · карта загроз</title>
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 <style>
 :root{--bg:#0e1217;--panel:rgba(16,20,26,.95);--line:#262e39;--tx:#e8eaed;--mut:#8b95a4;--acc:#ff8a1f;--red:#ff3b3b}
@@ -26,7 +26,7 @@ html,body{margin:0;height:100%;background:var(--bg);color:var(--tx);font:14px/1.
 /* бейдж симуляції */
 #badge{position:absolute;z-index:900;top:10px;left:50%;transform:translateX(-50%);pointer-events:none;
   background:rgba(14,18,23,.88);border:1px solid #3a2a12;color:#ffb347;padding:5px 12px;border-radius:999px;
-  font:700 11px/1 system-ui;letter-spacing:.06em;text-transform:uppercase;white-space:nowrap;backdrop-filter:blur(6px)}
+  font:700 11px/1 system-ui;letter-spacing:.06em;text-transform:uppercase;white-space:nowrap;max-width:94vw;overflow:hidden;text-overflow:ellipsis;backdrop-filter:blur(6px)}
 #badge i{display:inline-block;width:7px;height:7px;border-radius:50%;background:#ffb347;margin-right:7px;animation:blink 1.6s infinite}
 @keyframes blink{50%{opacity:.25}}
 #clock{position:absolute;z-index:900;right:10px;bottom:26px;color:#c9d1db;font:600 12px/1 ui-monospace,Menlo,monospace;
@@ -121,7 +121,7 @@ select:focus,input:focus{outline:2px solid #ff8a1f55;border-color:#ff8a1f}
 .town i{position:absolute;left:-2.5px;top:-2.5px;width:5px;height:5px;border-radius:50%;background:#cfd6df;box-shadow:0 0 0 1.5px rgba(0,0,0,.55)}
 .town span{position:absolute;left:7px;top:-8px;white-space:nowrap;color:#dfe4eb;font:600 11px/1 system-ui;text-shadow:0 0 3px #000,0 0 3px #000,0 0 5px #000}
 .town.r1 span{font-size:13px;font-weight:700}.town.r1 i{width:7px;height:7px;left:-3.5px;top:-3.5px}
-.town.r2,.town.r3{display:block}
+.town.r2,.town.r3{display:none}
 [data-z="8"] .town.r2,[data-z="9"] .town.r2,[data-z="10"] .town.r2,[data-z="11"] .town.r2,[data-z="12"] .town.r2{display:block}
 [data-z="9"] .town.r3,[data-z="10"] .town.r3,[data-z="11"] .town.r3,[data-z="12"] .town.r3{display:block}
 .rl{background:none;border:0;pointer-events:none}
@@ -167,7 +167,7 @@ body:not(.is-owner) #adminsec{display:none!important}
 </head>
 <body>
 <div id="map"></div>
-<div id="badge"><i></i>Симуляція · вигадані дані, не офіційні повідомлення</div>
+<div id="badge"><i></i>Неофіційна карта · за відкритими джерелами · можливі неточності</div>
 <div id="offline" hidden role="alert">⚠ Адміністратора немає в мережі — карта наразі не оновлюється</div>
 <div id="status"><span id="stNet"></span><span id="stPing"></span><span id="stOn"></span><span id="stAdm"></span></div>
 <div id="clock"></div>
@@ -195,7 +195,7 @@ body:not(.is-owner) #adminsec{display:none!important}
       <button class="ghost" id="clear">Прибрати всі цілі</button>
     </section>
     <section>
-      <h2>Швидкість симуляції</h2>
+      <h2>Швидкість руху цілей</h2>
       <div class="seg" id="mult"></div>
       <p class="hint" id="multHint">×1 — реальний час: 350 км/год — це лише 5,8 км за хвилину, тож шлях Шепетівка → Хмельницький (~85 км) займає близько 15 хвилин. Для швидшого перегляду став ×5 чи ×10.</p>
     </section>
@@ -581,16 +581,15 @@ function spawnPoint(w,key){
 }
 
 /* ───────── карта ───────── */
-const map = L.map('map',{zoomControl:false,minZoom:6,maxZoom:13,zoomSnap:.5,zoomDelta:.5,maxBoundsViscosity:1,
-  dragging:false,scrollWheelZoom:false,doubleClickZoom:false,touchZoom:false,boxZoom:false,keyboard:false,tap:false});   // камера зафіксована на області
-map.setMaxBounds([[44.0,22.0],[53.0,40.5]]);
-L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:12,attribution:'© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'}).addTo(map);
+const map = L.map('map',{zoomControl:false,minZoom:3,maxZoom:19,zoomSnap:.25,zoomDelta:.5,wheelPxPerZoomLevel:90});
+L.control.zoom({position:'topright',zoomInTitle:'Приблизити',zoomOutTitle:'Віддалити'}).addTo(map);
+L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,maxNativeZoom:19,attribution:'© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'}).addTo(map);
 function fit(){
   const wide=innerWidth>720&&ADMIN;
   map.fitBounds([[GEO.bounds[1],GEO.bounds[0]],[GEO.bounds[3],GEO.bounds[2]]],{animate:false,paddingTopLeft:[wide?364:10,70],paddingBottomRight:[10,ADMIN&&!wide?Math.round(innerHeight*.48):10]});
 }
 fit();
-const setZ=()=>{map.getContainer().dataset.z=String(Math.floor(map.getZoom()));};
+const setZ=()=>{map.getContainer().dataset.z=String(Math.min(12,Math.floor(map.getZoom())));};
 map.on('zoomend',setZ);setZ();
 
 L.geoJSON({type:'Feature',geometry:GEO.outline},{style:{fill:false,color:'#e8eaed',weight:3,opacity:.55},interactive:false}).addTo(map);
@@ -660,7 +659,7 @@ function addRuntime(t){
   const line=L.polyline([],{color:col,weight:1.6,opacity:.75,dashArray:'4 7',interactive:false}).addTo(map);
   const trail=L.polyline([],{color:col,weight:2.5,opacity:.3,interactive:false}).addTo(map);
   const pop=buildPopup(t);
-  marker.bindPopup(pop,{className:'tpop',offset:[0,-8],autoPan:false});
+  marker.bindPopup(pop,{className:'tpop',offset:[0,-8],autoPanPadding:[30,30]});
   marker.on('popupopen',()=>fillPopup(t,pop));
   const rt={marker,line,trail,tp:[],pop,rot:marker.getElement().querySelector('.rot')};
   RT.set(t.id,rt);
@@ -669,6 +668,7 @@ function addRuntime(t){
   rt.rot.style.transform=`rotate(${t.hdg}deg)`;
   line.setLatLngs(courseLL(t));
 }
+const nid=()=>S.targets.length?Math.max(...S.targets.map(t=>t.id))+1:1;   // номер = найбільший з активних + 1; коли цілей немає — знову 1
 function createTarget(type,towns,dirKey,status,prob){
   const T=TYPES[type];
   const wps=towns.map(x=>({name:x[0],lat:x[1],lon:x[2]}));
@@ -681,7 +681,7 @@ function createTarget(type,towns,dirKey,status,prob){
     const sp=spawnPoint(wps[0],dirKey);
     b={lat:sp.lat,lon:sp.lon,hdg:bearing(sp.lat,sp.lon,wps[0].lat,wps[0].lon),idx:0};
   }
-  const t={id:S.nextId++,type,wps,speed:Math.round(rand(T.speed[0],T.speed[1])/5)*5,b,t0:Date.now(),hold,status:status==='predicted'?'predicted':'confirmed',prob:status==='predicted'?(prob||60):0};
+  const t={id:(S.nextId=nid()+1,nid()),type,wps,speed:Math.round(rand(T.speed[0],T.speed[1])/5)*5,b,t0:Date.now(),hold,status:status==='predicted'?'predicted':'confirmed',prob:status==='predicted'?(prob||60):0};
   hydrate(t);S.targets.push(t);addRuntime(t);renderList();tick();commit();
   return t;
 }
@@ -708,7 +708,7 @@ function removeTarget(id,why){
 }
 function focusTarget(id){
   const t=live().find(x=>x.id===id),rt=RT.get(id);if(!t||!rt)return;
-  rt.marker.openPopup();
+  map.setView([t.lat,t.lon],Math.max(map.getZoom(),9),{animate:true});rt.marker.openPopup();
 }
 
 /* ───────── панель ───────── */
@@ -919,7 +919,7 @@ function applyData(d){
 function setAdmin(v){
   if(ADMIN===v)return;
   ADMIN=v;document.body.classList.toggle('is-admin',v);
-  map.invalidateSize();fit();tick();checkPresence();
+  map.invalidateSize();tick();checkPresence();
 }
 const NET={ping:null,on:null,adm:null};
 function renderStatus(){
@@ -1047,7 +1047,7 @@ function frame(now){
   requestAnimationFrame(frame);
 }
 requestAnimationFrame(frame);
-window.addEventListener('resize',()=>{map.invalidateSize();fit();});
+window.addEventListener('resize',()=>{map.invalidateSize();});
 window.SIM={inUkraine,lookOf,courseLL,S,map,createTarget,removeTarget,findTown,parseRoute,stepT,raionAt,inOblast,openModal,applyData,setAdmin,live};
 })();
 </script>
