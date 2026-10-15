@@ -1000,7 +1000,12 @@ function initFirebase(){
   // лічильник онлайн: кожен відкритий клієнт раз на 20 с оновлює свій запис у колекції «online»
   const ONL=fs.collection('online'),CID=(()=>{try{let v=sessionStorage.getItem('khm-cid');if(!v){v=Math.random().toString(36).slice(2,12);sessionStorage.setItem('khm-cid',v);}return v;}catch(e){return Math.random().toString(36).slice(2,12);}})();
   let onDocs=[],onOk=false;
-  function heart(){if(document.hidden)return;ONL.doc(CID).set({t:firebase.firestore.FieldValue.serverTimestamp(),admin:!!ADMIN}).catch(()=>{});}
+function heart(){
+  ONL.doc(CID).set({
+    t: firebase.firestore.FieldValue.serverTimestamp(),
+    admin: !!ADMIN
+  }).catch(()=>{});
+}
   function countOnline(){
     if(!onOk){NET.on=null;NET.adm=null;renderStatus();return;}
     const now=Date.now();let n=0,a=0;
