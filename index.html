@@ -680,7 +680,7 @@ function lastToken(text){return text.replace(/^[\s\S]*(?:→|->|=>|>|,|;|\/|\|)\
 const TYPES = {
   jet:    {name:'Реактивний БПЛА', color:'#ff2e63', speed:[400,400], turn:5, hint:'400 км/год'},
   missile:{name:'Ракета',          color:'#ffd43b', speed:[750,900], turn:4, hint:'750–900 км/год'},
-  drone:  {name:'БПЛА',            color:'#ff8a1f', speed:[200,200], turn:6, hint:'200 км/год'},
+  drone:  {name:'БПЛА',            color:'#ff8a1f', speed:[170,170], turn:6, hint:'170 км/год'},
 };
 const ORDER = ['jet','missile','drone'];
 const RADAR_OFF="<svg viewBox=\"0 0 24 24\" width=\"16\" height=\"16\" aria-hidden=\"true\"><circle cx=\"12\" cy=\"12\" r=\"8\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.7\"/><path d=\"M12 7a5 5 0 0 1 5 5M12 12l5-5M4 4l16 16\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\"/></svg>";
@@ -743,7 +743,7 @@ function catchUp(t,cap=20000){
 let pendingSpeedMigration=false;
 function flushSpeedMigration(){if(ADMIN&&pendingSpeedMigration){pendingSpeedMigration=false;commit();}}
 function hydrate(t){t.count=Math.max(1,Math.min(30,t.count||1));t.mult=t.mult||S.mult;t.hold=!!t.hold;t.stopped=!!t.stopped;t.note=t.note||'';t.lat=t.b.lat;t.lon=t.b.lon;t.hdg=t.b.hdg;t.idx=t.b.idx;t.done=false;t.gone=false;t.free=t.idx>=t.wps.length;t.simDone=0;catchUp(t,400000);
-  const fixed=t.type==='jet'?400:t.type==='drone'?200:null;
+  const fixed=t.type==='jet'?400:t.type==='drone'?170:null;
   if(fixed!==null&&t.speed!==fixed){
     // Preserve the position reached at the old speed before applying the new one.
     t.b={lat:t.lat,lon:t.lon,hdg:t.hdg,idx:t.idx};t.t0=Date.now();t.simDone=0;t.speed=fixed;
