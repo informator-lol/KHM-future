@@ -343,6 +343,10 @@ body.picking #map,body.picking #map .leaflet-interactive{cursor:crosshair!import
 .rl>div{background:rgba(16,24,33,.76);border:1px solid rgba(210,224,238,.18);border-radius:8px;padding:5px 9px;text-shadow:0 1px 2px #000}
 .rl b{font-size:13px;line-height:1.15}.rl small{display:block;font-size:10px;color:#bdc9d8;line-height:1.3}.rl span{font-size:11px;margin-top:3px}
 [data-z="10"] .rl,[data-z="11"] .rl,[data-z="12"] .rl{display:none}
+#mst{display:grid;grid-template-columns:1fr 1fr}#mst button{padding:10px 6px;min-height:42px}#mst button[data-s="untracked"]{grid-column:1/-1;display:flex;align-items:center;justify-content:center;gap:7px;color:#80e6b4;border-color:#2f6550}#mst button[data-s="untracked"].on{background:#57dc9b;color:#0d241a;border-color:#57dc9b}
+.tgt.is-untracked .qm{display:grid;place-items:center;background:#57dc9b;color:#0d241a;width:21px;height:21px}
+.tgt.is-untracked .ring{animation:none;border-style:dashed;opacity:.6;transform:none}
+.tgt.is-untracked .harrow{display:none}.qtag svg{width:13px;height:13px;vertical-align:-2px}
 </style>
 </head>
 <body>
@@ -438,12 +442,12 @@ body.picking #map,body.picking #map .leaflet-interactive{cursor:crosshair!import
     <div id="nsugg"><button type="button" data-t="Локаційно втрачений">Локаційно втрачений</button></div>
     <div id="mstw">
       <span class="lbl">Статус курсу</span>
-      <div class="seg" id="mst"><button type="button" data-s="predicted">? Непідтверджений</button><button type="button" data-s="confirmed">Підтверджений</button></div>
+      <div class="seg" id="mst"><button type="button" data-s="untracked"><svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><circle cx="12" cy="12" r="8" fill="none" stroke="currentColor" stroke-width="1.7"/><path d="M12 7a5 5 0 0 1 5 5M12 12l5-5M4 4l16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg> Не фіксується</button><button type="button" data-s="predicted">? Непідтверджений</button><button type="button" data-s="confirmed">Підтверджений</button></div>
       <div id="mprobw" hidden>
         <label class="lbl" for="mprob">Імовірність, що ціль там / летить туди: <b id="mprobv" style="color:var(--tx)">60%</b></label>
         <input type="range" id="mprob" min="5" max="95" step="5" value="60" style="width:100%;accent-color:#3b9bff">
       </div>
-      <p class="hint">Синій зі знаком «?» — курс лише передбачений. Червоний без знака — підтверджений. Змінити можна будь-коли через ✎.</p>
+      <p class="hint">Синій — непідтверджений. Червоний — підтверджений. Зелений із перекресленим радаром — не фіксується: мітка залишається на останній відомій позиції. Коли ціль знову з’явиться, виберіть «Підтверджений».</p>
     </div>
 
     <div class="actions">
@@ -679,9 +683,10 @@ const TYPES = {
   drone:  {name:'БПЛА',            color:'#ff8a1f', speed:[160,190], turn:6, hint:'160–190 км/год'},
 };
 const ORDER = ['jet','missile','drone'];
-const ST={predicted:{color:'#3b9bff',name:'Непідтверджений'},confirmed:{color:'#ff3b3b',name:'Підтверджений'},free:{color:'#ffd43b',name:'Курс втрачено'},stopped:{color:'#3b9bff',name:'Зупинено'}};
-const stOf=t=>t&&t.status==='predicted'?'predicted':'confirmed';
-const lookOf=t=>t&&t.stopped?'stopped':t&&t.free?'free':stOf(t);
+const RADAR_OFF="<svg viewBox=\"0 0 24 24\" width=\"16\" height=\"16\" aria-hidden=\"true\"><circle cx=\"12\" cy=\"12\" r=\"8\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.7\"/><path d=\"M12 7a5 5 0 0 1 5 5M12 12l5-5M4 4l16 16\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\"/></svg>";
+const ST={untracked:{color:'#57dc9b',name:'Не фіксується'},predicted:{color:'#3b9bff',name:'Непідтверджений'},confirmed:{color:'#ff3b3b',name:'Підтверджений'},free:{color:'#ffd43b',name:'Курс втрачено'},stopped:{color:'#3b9bff',name:'Зупинено'}};
+const stOf=t=>t&&t.status==='untracked'?'untracked':t&&t.status==='predicted'?'predicted':'confirmed';
+const lookOf=t=>stOf(t)==='untracked'?'untracked':t&&t.stopped?'stopped':t&&t.free?'free':stOf(t);
 const tcol=t=>ST[lookOf(t)].color;
 const SVG = {
   drone:c=>`<svg viewBox="0 0 48 48" width="34" height="34" aria-hidden="true"><g fill="${c}" stroke="#101722" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round"><path d="M24 3 46 35 43 39 28 34 27 41 21 41 20 34 5 39 2 35Z"/><path d="M24 7 27 31 24 36 21 31Z" fill="#fff" opacity=".32" stroke="none"/><path d="M8 35 20 31M40 35 28 31M17 43h14" fill="none"/><path d="M24 38v7"/></g></svg>`,
@@ -732,7 +737,7 @@ const sigOf=x=>JSON.stringify([x.type,x.wps,x.speed,x.b,x.t0,!!x.hold,stOf(x),x.
    Поточне місце кожен браузер рахує сам із часу, що минув, тож усі бачать її в одній точці. */
 function catchUp(t,cap=20000){
   const need=(Date.now()-t.t0)/1000*mOf(t)-t.simDone;
-  if(need<=0||t.done||t.hold||t.stopped)return;   // зупинена ціль не рухається
+  if(need<=0||t.done||t.hold||t.stopped||stOf(t)==='untracked')return;   // зупинена ціль не рухається
   const d=Math.min(need,cap);stepT(t,d);t.simDone+=d;
 }
 function hydrate(t){t.count=Math.max(1,Math.min(30,t.count||1));t.mult=t.mult||S.mult;t.hold=!!t.hold;t.stopped=!!t.stopped;t.note=t.note||'';t.lat=t.b.lat;t.lon=t.b.lon;t.hdg=t.b.hdg;t.idx=t.b.idx;t.done=false;t.gone=false;t.free=t.idx>=t.wps.length;t.simDone=0;catchUp(t,400000);}
@@ -797,7 +802,7 @@ const straightText=t=>{
   const place=aheadPlace(t);
   return place?'прямо, курсом на '+place:'прямо, напрямок '+compass(t.hdg)+' · населений пункт не визначено';
 };
-const routeText = t => t.free?straightText(t):t.hold&&t.wps[t.idx]?'курсом на '+t.wps[t.idx].name+', невідомо звідки':t.wps.slice(t.idx).map(w=>w.name).join(' → ');
+const routeText = t => stOf(t)==='untracked'?'Не фіксується · остання відома позиція':t.free?straightText(t):t.hold&&t.wps[t.idx]?'курсом на '+t.wps[t.idx].name+', невідомо звідки':t.wps.slice(t.idx).map(w=>w.name).join(' → ');
 const courseLL = t => t.free?[[t.lat,t.lon],moveBy(t.lat,t.lon,70000,t.hdg)]:[[t.lat,t.lon],...t.wps.slice(t.idx).map(w=>[w.lat,w.lon])];
 
 const BRG={N:0,NE:45,E:90,SE:135,S:180,SW:225,W:270,NW:315};
@@ -892,15 +897,15 @@ function fillPopup(t,el){
   const sb=el.querySelector('[data-a="stop"]');if(sb){sb.textContent=t.stopped?'▶ Продовжити':'⏸ Зупинити';sb.classList.toggle('go',!!t.stopped);}
   el.querySelectorAll('[data-a="type"]').forEach(b=>b.classList.toggle('on',b.dataset.k===t.type));
   const mh=el.querySelector('[data-h="move"]');if(mh)mh.hidden=!t.stopped;
-  set('spd',t.stopped?'0 км/год · зупинено':t.speed+' км/год');
+  set('spd',stOf(t)==='untracked'?'невідомо':t.stopped?'0 км/год · зупинено':t.speed+' км/год');
   set('prob',stOf(t)==='predicted'&&!t.free&&!t.stopped?(t.prob||60)+'% що летить туди':'—');
-  set('st',t.stopped?'Зупинено ? · курс збережено':t.free?'Курс втрачено ? · летить прямо':stOf(t)==='predicted'?'Непідтверджений ?':'Підтверджений');
+  set('st',stOf(t)==='untracked'?'Не фіксується · остання відома позиція':t.stopped?'Зупинено ? · курс збережено':t.free?'Курс втрачено ? · летить прямо':stOf(t)==='predicted'?'Непідтверджений ?':'Підтверджений');
   const pi=el.querySelector('.pi');if(pi)pi.innerHTML=SVG[t.type](tcol(t));
   set('hdg',String(Math.round(t.hdg)%360).padStart(3,'0')+'° '+compass(t.hdg));
   set('route',routeText(t));
-  set('next',t.stopped?'стоїть на місці · далі '+(t.free?'прямо':wp.name):t.free?straightText(t):t.hold?'курсом на '+wp.name+', невідомо звідки':wp.name+' · '+km(distM(t.lat,t.lon,wp.lat,wp.lon))+' км');
-  set('rem',t.hold||t.free||t.stopped?'—':km(rem)+' км');
-  set('eta',t.stopped?'зупинено':t.free?'невідомо · курс втрачено':t.hold?'невідомо':fmtEta(rem/(t.speed/3.6*mOf(t))));
+  set('next',stOf(t)==='untracked'?'очікуємо повторної фіксації':t.stopped?'стоїть на місці · далі '+(t.free?'прямо':wp.name):t.free?straightText(t):t.hold?'курсом на '+wp.name+', невідомо звідки':wp.name+' · '+km(distM(t.lat,t.lon,wp.lat,wp.lon))+' км');
+  set('rem',stOf(t)==='untracked'||t.hold||t.free||t.stopped?'—':km(rem)+' км');
+  set('eta',stOf(t)==='untracked'?'невідомо':t.stopped?'зупинено':t.free?'невідомо · курс втрачено':t.hold?'невідомо':fmtEta(rem/(t.speed/3.6*mOf(t))));
   let nb=null,nd=Infinity;for(const x of TOWNS){const d=distM(t.lat,t.lon,x[1],x[2]);if(d<nd){nd=d;nb=x;}}
   set('near',nb[0]+' · '+km(nd)+' км');
   const ra=raionAt(t.lat,t.lon);
@@ -908,7 +913,10 @@ function fillPopup(t,el){
 }
 function syncLook(t,rt){
   const col=tcol(t),pred=lookOf(t)!=='confirmed',el=rt.marker.getElement();
+  const untracked=stOf(t)==='untracked';
+  el.classList.toggle('is-untracked',untracked);
   el.classList.toggle('is-pred',pred);
+  const badge=el.querySelector('.qm');if(badge.dataset.status!==stOf(t)){badge.dataset.status=stOf(t);badge.innerHTML=untracked?RADAR_OFF:'?';badge.title=untracked?'Не фіксується':'';}
   el.title=`${nameOf(t)} #${t.id}`;
   const cn=cOf(t);
   if(rt.col===col&&rt.pred===pred&&rt.ty===t.type&&rt.cn===cn)return;
@@ -919,7 +927,7 @@ function syncLook(t,rt){
   const cb=el.querySelector('.cnt');cb.style.setProperty('--c',col);cb.textContent='×'+cn;
   rt.rot.style.setProperty('--c',col);rt.rot.innerHTML=iconHTML(t,col);
   const ha=el.querySelector('.harrow');ha.style.setProperty('--c',col);ha.querySelector('path').setAttribute('fill',col);
-  rt.line.setStyle({color:col,dashArray:pred?'4 7':null,weight:pred?1.6:2.4,opacity:pred?.8:.95});
+  rt.line.setStyle({color:col,dashArray:pred?'4 7':null,weight:pred?1.6:2.4,opacity:untracked?0:pred?.8:.95});
   rt.trail.setStyle({color:col});
 }
 function addRuntime(t){
@@ -969,17 +977,21 @@ function createTarget(type,towns,dirKey,status,prob,note,count,mult,origin){
     const sp=spawnPoint(wps[0],dirKey);
     b={lat:sp.lat,lon:sp.lon,hdg:bearing(sp.lat,sp.lon,wps[0].lat,wps[0].lon),idx:0};
   }
-  const t={id:(S.nextId=nid()+1,nid()),type,wps,speed:rollSpeed(type),count:Math.max(1,Math.min(30,count||1)),mult:mult||S.mult,note:note||'',stopped:false,b,t0:Date.now(),hold,status:status==='predicted'?'predicted':'confirmed',prob:status==='predicted'?(prob||60):0};
+  const t={id:(S.nextId=nid()+1,nid()),type,wps,speed:rollSpeed(type),count:Math.max(1,Math.min(30,count||1)),mult:mult||S.mult,note:note||'',stopped:false,b,t0:Date.now(),hold,status:status==='untracked'?'untracked':status==='predicted'?'predicted':'confirmed',prob:status==='predicted'?(prob||60):0};
   hydrate(t);S.targets.push(t);addRuntime(t);renderList();tick();commit();
   return t;
 }
-function editRoute(t,towns,status,prob,type,note,count,mult){
+function editRoute(t,towns,status,prob,type,note,count,mult,preserveRoute=false){
   catchUp(t);
   if(count)t.count=Math.max(1,Math.min(30,count));
   if(mult)t.mult=mult;
   if(type&&TYPES[type]&&type!==t.type){t.type=type;t.speed=rollSpeed(type);}
   if(note!==undefined)t.note=note||'';
-  if(status){t.status=status==='predicted'?'predicted':'confirmed';t.prob=t.status==='predicted'?(prob||60):0;}
+  if(status){t.status=status==='untracked'?'untracked':status==='predicted'?'predicted':'confirmed';t.prob=t.status==='predicted'?(prob||60):0;}
+  if(preserveRoute){
+    t.b={lat:t.lat,lon:t.lon,hdg:t.hdg,idx:t.idx};t.t0=Date.now();t.simDone=0;
+    refreshTarget(t);return;
+  }
   const was=t.hold;
   t.wps=towns.map(x=>({name:x[0],lat:x[1],lon:x[2]}));
   t.hold=!!was&&towns.length===1&&distM(t.lat,t.lon,towns[0][1],towns[0][2])<1500;   // стоїть, поки курс не змінять на інше місце
@@ -1077,12 +1089,13 @@ function renderList(){
 function updateList(){
   for(const t of live()){
     const it=document.querySelector(`.titem[data-id="${t.id}"]`);if(!it)continue;
-    const el=it.querySelector('small');if(el){el.textContent=(t.stopped?'⏸ ':'')+(t.free||t.hold||t.stopped?routeText(t):routeText(t)+' · '+km(remainM(t))+' км')+(stOf(t)==='predicted'&&t.prob&&!t.stopped?' · '+t.prob+'%':'')+(t.note?' · «'+t.note+'»':'');el.title=el.textContent;}
+    const el=it.querySelector('small');if(el){el.textContent=(t.stopped?'⏸ ':'')+(stOf(t)==='untracked'||t.free||t.hold||t.stopped?routeText(t):routeText(t)+' · '+km(remainM(t))+' км')+(stOf(t)==='predicted'&&t.prob&&!t.stopped?' · '+t.prob+'%':'')+(t.note?' · «'+t.note+'»':'');el.title=el.textContent;}
     const nmEl=it.querySelector('.nm');if(nmEl&&nmEl.textContent!==nameOf(t))nmEl.textContent=nameOf(t);
     const mmb=it.querySelector('[data-a="mult"]');if(mmb&&mmb.textContent!=='×'+mOf(t))mmb.textContent='×'+mOf(t);
     const sbt=it.querySelector('[data-a="stop"]');if(sbt){const w=t.stopped?'▶':'⏸';if(sbt.textContent!==w){sbt.textContent=w;sbt.title=t.stopped?'Продовжити рух':'Зупинити';}}
     const need=lookOf(t)!=='confirmed',nm=it.querySelector('b'),tag=nm.querySelector('.qtag');   // «?» і колір у списку слідують за станом цілі
     if(need&&!tag)nm.insertAdjacentHTML('beforeend',' <span class="qtag">?</span>');else if(!need&&tag)tag.remove();
+    const badge=nm.querySelector('.qtag');if(badge){const u=stOf(t)==='untracked';badge.innerHTML=u?RADAR_OFF:'?';badge.style.background=u?ST.untracked.color:'';badge.style.color=u?'#0d241a':'';badge.title=u?'Не фіксується':'';}
     const ti=it.querySelector('.ti'),col=tcol(t),tk=col+t.type;if(ti&&ti.dataset.c!==tk){ti.dataset.c=tk;ti.innerHTML=SVG[t.type](col);}
   }
 }
@@ -1160,7 +1173,7 @@ function refreshModal(kick){
   if(g&&g.state==='pending')st.textContent='Шукаю по мапі…';
   else if(g&&g.state==='error')st.textContent='Пошук по мапі недоступний — спробуйте ще раз або виберіть із підказок.';
   if(st.textContent)sg.appendChild(st);
-  $('#msave').disabled=!parts.length||parts.some(p=>!p.town);
+  $('#msave').disabled=!(M.mode==='edit'&&$('#mroute').value===M.routeValue)&&(!parts.length||parts.some(p=>!p.town));
   $('#mpeek').disabled=!parts.some(p=>p.town);
 }
 let kickT;
@@ -1179,6 +1192,7 @@ function openModal(mode,id){
   $('#msave').textContent=mode==='edit'?'Зберегти курс':'Додати ціль';
   if(t)t.wps.forEach(w=>PICK.set(stripKind(w.name),[w.name,w.lat,w.lon,3,[]]));   // точки вже відомі — не шукати заново
   $('#mroute').value=t?t.wps.slice(t.idx).map(w=>w.name).join(' → '):'';
+  M.routeValue=$('#mroute').value;
   syncSt();refreshModal(false);
   $('#modal').hidden=false;setTimeout(()=>{const i=$('#mroute');i.focus();i.setSelectionRange(i.value.length,i.value.length);},30);
 }
@@ -1356,14 +1370,16 @@ $('#nsugg').addEventListener('click',e=>{const b=e.target.closest('button');if(b
 $('#mform').addEventListener('submit',e=>{
   e.preventDefault();
   const parts=parseRoute($('#mroute').value);
-  if(!parts.length||parts.some(p=>!p.town))return;
+  if(!ADMIN)return;
+  const preserveRoute=M.mode==='edit'&&$('#mroute').value===M.routeValue;
+  if(!preserveRoute&&(!parts.length||parts.some(p=>!p.town)))return;
   const towns=parts.map(p=>p.town).filter((x,i,a)=>!i||x!==a[i-1]);
   if(M.mode==='add'){
     const t=createTarget(M.type,towns,$('#mdir').value,M.status,M.prob,$('#mnote').value.trim(),M.count,M.mult,M.origin);
     toast(`${nameOf(t)} #${t.id} → ${towns.map(x=>x[0]).join(' → ')}`);
   } else {
     const t=live().find(x=>x.id===M.id);
-    if(t){editRoute(t,towns,M.status,M.prob,M.type,$('#mnote').value.trim(),M.count,M.mult);toast(`Курс #${t.id} змінено: ${towns.map(x=>x[0]).join(' → ')}`);}
+    if(t){editRoute(t,towns,M.status,M.prob,M.type,$('#mnote').value.trim(),M.count,M.mult,preserveRoute);toast(`#${t.id} · ${ST[stOf(t)].name}`);}
   }
   closeModal();
 });
