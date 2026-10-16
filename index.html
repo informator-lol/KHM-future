@@ -82,8 +82,9 @@ select:focus,input:focus{outline:2px solid #ff8a1f55;border-color:#ff8a1f}
 .hint{color:var(--mut);font-size:11.5px;margin:7px 0 0}
 
 /* модалка */
-#modal{position:fixed;inset:0;z-index:2000;background:rgba(5,8,12,.62);display:grid;place-items:center;padding:14px;backdrop-filter:blur(3px)}
-#mform{width:min(460px,100%);background:#10151c;border:1px solid var(--line);border-radius:16px;padding:18px;box-shadow:0 20px 60px rgba(0,0,0,.6)}
+#modal{position:fixed;inset:0;z-index:2000;background:rgba(5,8,12,.62);display:flex;justify-content:center;align-items:flex-start;padding:14px 14px 60px;backdrop-filter:blur(3px);overflow-y:auto;-webkit-overflow-scrolling:touch;overscroll-behavior:contain}
+#modal.peek{display:none!important}
+#mform{margin:auto;flex:none;width:min(460px,100%);background:#10151c;border:1px solid var(--line);border-radius:16px;padding:18px;box-shadow:0 20px 60px rgba(0,0,0,.6)}
 #mform h3{margin:0 0 14px;font-size:17px}
 .lbl{display:block;font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--mut);margin:14px 0 6px}
 .types{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
@@ -105,7 +106,7 @@ select:focus,input:focus{outline:2px solid #ff8a1f55;border-color:#ff8a1f}
 /* підказка інфо про ціль */
 .tpop .leaflet-popup-content-wrapper{background:#10151c;color:var(--tx);border:1px solid #2b3440;border-radius:14px;box-shadow:0 12px 40px rgba(0,0,0,.6)}
 .tpop .leaflet-popup-tip{background:#10151c;border:1px solid #2b3440}
-.tpop .leaflet-popup-content{margin:12px 14px;width:250px!important}
+.tpop .leaflet-popup-content{margin:12px 14px;width:250px!important;max-height:62vh;overflow-y:auto;-webkit-overflow-scrolling:touch;overscroll-behavior:contain}
 .tpop a.leaflet-popup-close-button{color:#8b95a4}
 .pinfo .ph{display:flex;gap:10px;align-items:center;margin-bottom:8px}
 .pinfo .pi svg{height:34px;width:auto}
@@ -194,6 +195,19 @@ body.is-admin .pinfo .nt{display:none!important}
   #clock{bottom:auto;top:84px;right:8px}
   #status{top:34px;font-size:10px;padding:5px 10px}
 }
+/* перегляд курсу на мапі */
+.pvx{background:none;border:0}
+.pvx svg{display:block;filter:drop-shadow(0 0 4px rgba(0,0,0,.8))}
+.pvx b{position:absolute;left:16px;top:-12px;background:#ffd43b;color:#1a0f00;font:800 11px/1 system-ui;padding:3px 6px;border-radius:6px;white-space:nowrap;box-shadow:0 0 0 1.5px #000}
+.pvc{font:600 11px/1.2 system-ui}
+#peekbar{position:fixed;z-index:2100;left:50%;bottom:14px;transform:translateX(-50%);width:min(520px,calc(100vw - 20px));
+  background:#10151c;border:1px solid #2b3440;border-radius:14px;padding:12px;box-shadow:0 12px 40px rgba(0,0,0,.6)}
+#peekbar .pi2{font-size:12.5px;color:#c9d1db;margin:0 0 10px}
+#peekbar .pb{display:grid;grid-template-columns:1fr 1.4fr;gap:10px}
+.pvpop{min-width:150px}.pvpop b{display:block;font-size:13px}.pvpop small{display:block;color:#8b95a4;margin:2px 0 8px}
+.pvpop button{width:100%;padding:7px 8px;border-radius:8px;border:1px solid var(--acc);background:#2a1a08;color:var(--tx);font-weight:700}
+#mpeek{width:100%;margin-top:8px}
+#mpeek:disabled{opacity:.4;cursor:not-allowed}
 /* розділення ролей (завжди в кінці, з !important): глядач не бачить ні панелі, ні кнопок керування */
 body:not(.is-admin) #panel,body:not(.is-admin) #modal,body:not(.is-admin) .pinfo .pa{display:none!important}
 body:not(.fb) #logout,body:not(.fb) #lock,body.is-admin #lock{display:none!important}
@@ -269,6 +283,7 @@ body:not(.is-owner) #adminsec{display:none!important}
     <input type="text" id="mroute" placeholder="Шепетівка → Хмельницький" spellcheck="false" autocapitalize="off">
     <div id="chips"></div>
     <div id="sugg"></div>
+    <button type="button" class="ghost" id="mpeek" disabled>📍 Показати на мапі, куди летітиме</button>
     <p class="hint">Одне місце — ціль летить прямо туди. Кілька — по черзі, розділяйте «→», комою або « - ». Міста, селища й села шукаються по мапі, помилки в назвах виправляються самі. Якщо назв кілька — виберіть свою з підказок.</p>
     <label class="lbl" for="mnote">Коментар <span style="text-transform:none;letter-spacing:0;font-weight:500">(необов'язково)</span></label>
     <input type="text" id="mnote" maxlength="120" placeholder="Напр.: стоїть на Деражні" spellcheck="false">
@@ -292,6 +307,10 @@ body:not(.is-owner) #adminsec{display:none!important}
       <button type="submit" class="primary" id="msave">Додати ціль</button>
     </div>
   </form>
+</div>
+<div id="peekbar" hidden>
+  <p class="pi2" id="peekinfo"></p>
+  <div class="pb"><button type="button" class="ghost" id="peekback">← Назад до форми</button><button type="button" class="primary" id="peekok">Створити ціль</button></div>
 </div>
 <div id="toast" role="status"></div>
 
@@ -480,7 +499,7 @@ function geoLookup(raw,q){
   const run=n=>fetchCandidates(name).then(list=>{GC.set(q,{state:'done',list});},()=>{
     if(n>0)return new Promise(r=>setTimeout(r,1200)).then(()=>run(n-1));   // збій мережі чи ліміт сервісу — пробуємо ще
     GC.set(q,{state:'error',list:[]});});
-  run(2).then(()=>{if(!$('#modal').hidden)refreshModal();});
+  run(2).then(()=>{if(!$('#modal').hidden)refreshModal();if(peeking)showPeek(true);});
 }
 function geoBest(q,list){
   const lim=q.length<=4?0:q.length<=6?1:q.length<=9?2:3;
@@ -990,6 +1009,7 @@ function refreshModal(kick){
   else if(g&&g.state==='error')st.textContent='Пошук по мапі недоступний — спробуйте ще раз або виберіть із підказок.';
   if(st.textContent)sg.appendChild(st);
   $('#msave').disabled=!parts.length||parts.some(p=>!p.town);
+  $('#mpeek').disabled=!parts.some(p=>p.town);
 }
 let kickT;
 function refreshModalSoon(){refreshModal(false);clearTimeout(kickT);kickT=setTimeout(()=>refreshModal(true),450);}
@@ -1013,7 +1033,85 @@ function openModal(mode,id){
 function syncSt(){$('#mprobw').hidden=M.status!=='predicted';[...$('#mst').children].forEach(b=>b.classList.toggle('on',b.dataset.s===M.status));renderTypes();syncGrp();}
 $('#mprob').addEventListener('input',()=>{M.prob=+$('#mprob').value;$('#mprobv').textContent=M.prob+'%';});
 $('#mst').addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;M.status=b.dataset.s;syncSt();});
-function closeModal(){$('#modal').hidden=true;}
+function closeModal(){exitPeek();$('#modal').hidden=true;}
+
+/* ───────── перегляд курсу на мапі ─────────
+   Кнопка ховає форму й показує на мапі хрестики на кожній точці курсу, лінію маршруту
+   та (якщо є) інші однойменні населені пункти — їх можна вибрати прямо на мапі. */
+const PV=L.layerGroup().addTo(map);
+let peeking=false;
+function pvIcon(label){
+  const el=document.createElement('div');
+  el.innerHTML='<svg viewBox="0 0 24 24" width="26" height="26" aria-hidden="true"><path d="M4 4L20 20M20 4L4 20" stroke="#000" stroke-width="6" stroke-linecap="round"/><path d="M4 4L20 20M20 4L4 20" stroke="#ffd43b" stroke-width="3" stroke-linecap="round"/></svg><b></b>';
+  el.querySelector('b').textContent=label;
+  return L.divIcon({className:'pvx',html:el,iconSize:[26,26],iconAnchor:[13,13]});
+}
+function exitPeek(){
+  PV.clearLayers();peeking=false;
+  $('#peekbar').hidden=true;$('#modal').classList.remove('peek');
+}
+function showPeek(noFit){
+  const parts=parseRoute($('#mroute').value,true);
+  const towns=parts.filter(p=>p.town).map(p=>p.town).filter((x,i,a)=>!i||x!==a[i-1]);
+  if(!towns.length){toast('Спершу впишіть курс');return;}
+  PV.clearLayers();
+  const fitPts=[];
+  let start=null,startLbl='';
+  if(M.mode==='edit'){const t=live().find(x=>x.id===M.id);if(t){start=[t.lat,t.lon];startLbl='ціль зараз тут';}}
+  else if($('#mdir').value!=='first'){
+    const key=$('#mdir').value,sp=spawnPoint({lat:towns[0][1],lon:towns[0][2]},key);
+    start=[sp.lat,sp.lon];startLbl='Звідси з\'явиться (приблизно)';
+  }
+  const path=(start?[start]:[]).concat(towns.map(x=>[x[1],x[2]]));
+  if(path.length>1)L.polyline(path,{color:'#ffd43b',weight:2.5,opacity:.9,dashArray:'6 8',interactive:false}).addTo(PV);
+  if(start){
+    L.circleMarker(start,{radius:6,color:'#000',weight:1.5,fillColor:'#ffd43b',fillOpacity:1,interactive:false}).bindTooltip(startLbl,{permanent:true,direction:'top',offset:[0,-6]}).addTo(PV);
+    fitPts.push(start);
+  }
+  towns.forEach((x,i)=>{
+    L.marker([x[1],x[2]],{icon:pvIcon(`${i+1}. ${x[0]}${x[5]?' · '+x[5]:''}`),interactive:false,keyboard:false,zIndexOffset:2000}).addTo(PV);
+    fitPts.push([x[1],x[2]]);
+  });
+  let others=0;
+  for(const p of parts){
+    if(!p.town)continue;
+    const q=stripKind(p.q),g=GC.get(q);
+    if(!g){if(q.length>=3)geoLookup(p.q,q);continue;}
+    if(g.state!=='done')continue;
+    const lim=q.length<=4?0:q.length<=6?1:q.length<=9?2:3;
+    let n=0;
+    for(const c of g.list){
+      if(n>=8)break;
+      const cn=norm(c.name);
+      if(!(cn.startsWith(q)||lev(cn,q)<=Math.max(1,lim)))continue;
+      if(distM(c.lat,c.lon,p.town[1],p.town[2])<1500)continue;
+      n++;others++;
+      const m=L.circleMarker([c.lat,c.lon],{radius:8,color:'#9aa5b4',weight:2,fillColor:'#161c24',fillOpacity:.92}).addTo(PV);
+      const lab=document.createElement('span');lab.className='pvc';lab.textContent=c.name+(c.sub?' · '+c.sub:'');
+      m.bindTooltip(lab,{direction:'top',offset:[0,-6]});
+      const box=document.createElement('div');box.className='pvpop';
+      const nm=document.createElement('b');nm.textContent=c.name;
+      const sb=document.createElement('small');sb.textContent=c.sub||'—';
+      const bt=document.createElement('button');bt.type='button';bt.textContent='✓ Вибрати це';
+      bt.addEventListener('click',()=>{PICK.set(q,[c.name,c.lat,c.lon,3,[],c.sub]);map.closePopup();showPeek();refreshModal(false);});
+      box.append(nm,sb,bt);m.bindPopup(box);
+      if(distM(c.lat,c.lon,p.town[1],p.town[2])<150000)fitPts.push([c.lat,c.lon]);
+    }
+  }
+  let len=0;for(let i=1;i<path.length;i++)len+=distM(path[i-1][0],path[i-1][1],path[i][0],path[i][1]);
+  const T=TYPES[M.type],v=(T.speed[0]+T.speed[1])/2/3.6*(M.mult||S.mult);
+  $('#peekinfo').textContent=`${towns.map(x=>x[0]).join(' → ')} · ≈ ${km(len)} км · ≈ ${fmtEta(len/v)} (×${M.mult||S.mult})`
+    +(others?` · Інших збігів: ${others} — натисніть сіре коло на мапі, щоб вибрати його`:'');
+  $('#peekok').textContent=M.mode==='edit'?'Зберегти курс':'Створити ціль';
+  $('#modal').classList.add('peek');$('#peekbar').hidden=false;peeking=true;
+  if(!noFit){
+    const wide=innerWidth>720&&ADMIN;
+    map.fitBounds(L.latLngBounds(fitPts),{animate:true,maxZoom:11,paddingTopLeft:[wide?364:40,70],paddingBottomRight:[40,170]});
+  }
+}
+$('#mpeek').addEventListener('click',()=>showPeek());
+$('#peekback').addEventListener('click',exitPeek);
+$('#peekok').addEventListener('click',()=>{exitPeek();const f=$('#mform');if(f.requestSubmit)f.requestSubmit();else f.dispatchEvent(new Event('submit',{cancelable:true,bubbles:true}));});
 $('#add').addEventListener('click',()=>openModal('add'));
 $('#mcancel').addEventListener('click',closeModal);
 $('#modal').addEventListener('mousedown',e=>{if(e.target.id==='modal')closeModal();});
