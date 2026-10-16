@@ -403,6 +403,7 @@ body.picking #map,body.picking #map .leaflet-interactive{cursor:crosshair!import
 <div id="modal" hidden role="dialog" aria-modal="true" aria-labelledby="mtitle">
   <form id="mform" autocomplete="off">
     <h3 id="mtitle">Додати ціль</h3>
+    <button type="button" class="ghost" id="teleport" hidden style="width:100%;margin:12px 0">⌖ Телепортувати до…</button>
     <div id="mtypew">
       <span class="lbl" style="margin-top:0">Тип цілі</span>
       <div class="types" id="mtype"></div>
@@ -1192,7 +1193,7 @@ function openModal(mode,id){
   M.status=t?stOf(t):DEFS.status;M.prob=t&&t.prob?t.prob:60;$('#mprob').value=M.prob;$('#mprobv').textContent=M.prob+'%';
   if(!t)$('#mdir').value=DEFS.dir;
   $('#mtitle').textContent=mode==='edit'&&t?`Змінити курс · ${TYPES[t.type].name} #${t.id}`:'Додати ціль';
-  $('#mtypew').hidden=false;$('#mdirw').hidden=mode==='edit';
+  $('#teleport').hidden=mode!=='edit'||!t;$('#mtypew').hidden=false;$('#mdirw').hidden=mode==='edit';
   $('#mnote').value=t?t.note||'':'';
   $('#msave').textContent=mode==='edit'?'Зберегти курс':'Додати ціль';
   if(t)t.wps.forEach(w=>PICK.set(stripKind(w.name),[w.name,w.lat,w.lon,3,[]]));   // точки вже відомі — не шукати заново
@@ -1216,7 +1217,31 @@ function syncOrigin(){
   $('#clear-origin').hidden=!o;$('#mdir').disabled=!!o;
   $('#pick-origin').textContent=o?'⌖ Змінити точку старту':'⌖ Вибрати старт на карті';
 }
+function teleportTarget(id,ll){
+  if(!ADMIN)return false;
+  const t=live().find(x=>x.id===id);
+  if(!t){toast('Ціль уже недоступна');return false;}
+  catchUp(t);
+  if(t.done){toast('Ціль уже завершила рух');return false;}
+  t.lat=ll.lat;t.lon=ll.lng;
+  const wp=t.wps[t.idx];
+  if(!t.free&&wp)t.hdg=bearing(t.lat,t.lon,wp.lat,wp.lon);
+  t.b={lat:t.lat,lon:t.lon,hdg:t.hdg,idx:t.idx};t.t0=Date.now();t.simDone=0;
+  const rt=RT.get(t.id);
+  if(rt){rt.marker.setLatLng([t.lat,t.lon]);rt.tp=[];rt.trail.setLatLngs([]);rt.line.setLatLngs(courseLL(t));rt.rot.style.transform='rotate('+t.hdg+'deg)';fillPopup(t,rt.pop);}
+  tick();commit();toast('#'+t.id+' телепортовано');return true;
+}
 function setPickPoint(ll){
+  if(pickMode==='teleport'){
+    pickCandidate={lat:ll.lat,lng:ll.lng};
+    const t=live().find(x=>x.id===M.id);if(!t)return;
+    if(!pickMarker){
+      const sz=iconSize(t);
+      const html='<div class="rot" style="transform:rotate('+t.hdg+'deg);--c:'+tcol(t)+'">'+iconHTML(t,tcol(t))+'</div>';
+      pickMarker=L.marker(ll,{icon:L.divIcon({className:'tgt teleport-preview',html,iconSize:[sz,sz],iconAnchor:[sz/2,sz/2]}),interactive:false,keyboard:false,zIndexOffset:3000}).addTo(pickLayer);
+    }else pickMarker.setLatLng(ll);
+    return;
+  }
   pickCandidate={lat:ll.lat,lng:ll.lng};pickLayer.clearLayers();
   pickMarker=L.marker(ll,{icon:L.divIcon({className:'origin-pin',html:pickMode==='origin'?'A':'+',iconSize:[30,30],iconAnchor:[15,15]}),interactive:false}).addTo(pickLayer);
   $('#pick-help').textContent=ll.lat.toFixed(5)+', '+ll.lng.toFixed(5)+' · Натисніть інше місце, щоб перемістити точку.';
@@ -1224,17 +1249,23 @@ function setPickPoint(ll){
 }
 function beginPick(mode){
   if(!ADMIN)return;
-  exitPeek();pickMode=mode;pickTrigger=document.activeElement;pickCandidate=null;
+  exitPeek();pickMode=mode;pickTrigger=document.activeElement;pickCandidate=null;pickMarker=null;
+  $('#pick-confirm').hidden=mode==='teleport';
   $('#pick-title').textContent=mode==='origin'?'Звідки починається маршрут?':'Додайте точку курсу';
   $('#pick-help').textContent='Натисніть потрібне місце. Карту можна пересувати та масштабувати.';
   $('#pick-confirm').disabled=true;
   $('#modal').classList.add('peek');$('#pickbar').hidden=false;document.body.classList.add('picking');map.closePopup();
   if(mode==='origin'&&M.origin)setPickPoint(M.origin);
+  if(mode==='teleport'){
+    $('#pick-title').textContent='Телепортувати ціль';
+    $('#pick-help').textContent='Іконка слідує за курсором. Натисніть на карту, щоб перенести ціль. Escape — скасувати. На телефоні торкніться потрібного місця.';
+  }
   $('#pick-cancel').focus();
 }
 function finishPick(apply){
   if(apply&&pickCandidate){
-    if(pickMode==='origin'){M.origin={...pickCandidate};syncOrigin();}
+    if(pickMode==='teleport'){teleportTarget(M.id,pickCandidate);}
+    else if(pickMode==='origin'){M.origin={...pickCandidate};syncOrigin();}
     else{
       let number=1;while(PICK.has(stripKind('Точка карти '+number)))number++;
       const name='Точка карти '+number;
@@ -1243,11 +1274,18 @@ function finishPick(apply){
       refreshModal(false);
     }
   }
-  pickMode=null;pickCandidate=null;pickLayer.clearLayers();
+  pickMode=null;pickCandidate=null;pickMarker=null;pickLayer.clearLayers();$('#pick-confirm').hidden=false;
   document.body.classList.remove('picking');$('#pickbar').hidden=true;$('#modal').classList.remove('peek');
   if(pickTrigger)pickTrigger.focus();
 }
-map.on('click',e=>{if(pickMode&&ADMIN)setPickPoint(e.latlng.wrap());});
+map.on('mousemove',e=>{if(pickMode==='teleport'&&ADMIN)setPickPoint(e.latlng.wrap());});
+map.on('mouseout',()=>{if(pickMode==='teleport'){pickLayer.clearLayers();pickMarker=null;}});
+map.on('click',e=>{
+  if(!pickMode||!ADMIN)return;
+  setPickPoint(e.latlng.wrap());
+  if(pickMode==='teleport')finishPick(true);
+});
+$('#teleport').addEventListener('click',()=>{if(M.mode==='edit'&&ADMIN)beginPick('teleport');});
 $('#pick-origin').addEventListener('click',()=>beginPick('origin'));
 $('#pick-route').addEventListener('click',()=>beginPick('route'));
 $('#pick-cancel').addEventListener('click',()=>finishPick(false));
