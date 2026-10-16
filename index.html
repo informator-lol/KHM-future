@@ -793,7 +793,28 @@ function stepT(t,dt){
   }
 }
 function remainM(t){let d=0,la=t.lat,lo=t.lon;for(let i=t.idx;i<t.wps.length;i++){d+=distM(la,lo,t.wps[i].lat,t.wps[i].lon);la=t.wps[i].lat;lo=t.wps[i].lon;}return d;}
-const routeText = t => t.free?'прямо ('+compass(t.hdg)+') до межі України':t.hold&&t.wps[t.idx]?'курсом на '+t.wps[t.idx].name+', невідомо звідки':t.wps.slice(t.idx).map(w=>w.name).join(' → ');
+// A nearby place along the current heading is a visual reference, not a confirmed destination.
+function aheadPlace(t){
+  const candidates=[...TOWNS,...FAR];
+  for(const g of GC.values())if(g.state==='done')for(const c of g.list)candidates.push([c.name,c.lat,c.lon]);
+  let best=null,bestScore=Infinity;
+  for(const place of candidates){
+    const distance=distM(t.lat,t.lon,place[1],place[2]);
+    if(distance<1500||distance>180000)continue;
+    const angle=Math.abs(((bearing(t.lat,t.lon,place[1],place[2])-t.hdg)%360+540)%360-180);
+    if(angle>20)continue;
+    const across=distance*Math.sin(angle*Math.PI/180);
+    if(across>15000)continue;
+    const score=distance+across*4;
+    if(score<bestScore){best=place[0];bestScore=score;}
+  }
+  return best;
+}
+const straightText=t=>{
+  const place=aheadPlace(t);
+  return place?'прямо, курсом на '+place:'прямо, напрямок '+compass(t.hdg)+' · населений пункт не визначено';
+};
+const routeText = t => t.free?straightText(t):t.hold&&t.wps[t.idx]?'курсом на '+t.wps[t.idx].name+', невідомо звідки':t.wps.slice(t.idx).map(w=>w.name).join(' → ');
 const courseLL = t => t.free?[[t.lat,t.lon],moveBy(t.lat,t.lon,70000,t.hdg)]:[[t.lat,t.lon],...t.wps.slice(t.idx).map(w=>[w.lat,w.lon])];
 
 const BRG={N:0,NE:45,E:90,SE:135,S:180,SW:225,W:270,NW:315};
@@ -895,9 +916,9 @@ function fillPopup(t,el){
   const pi=el.querySelector('.pi');if(pi)pi.innerHTML=SVG[t.type](tcol(t));
   set('hdg',String(Math.round(t.hdg)%360).padStart(3,'0')+'° '+compass(t.hdg));
   set('route',routeText(t));
-  set('next',t.stopped?'стоїть на місці · далі '+(t.free?'прямо':wp.name):t.free?'без цілі · летить прямо':t.hold?'курсом на '+wp.name+', невідомо звідки':wp.name+' · '+km(distM(t.lat,t.lon,wp.lat,wp.lon))+' км');
+  set('next',t.stopped?'стоїть на місці · далі '+(t.free?'прямо':wp.name):t.free?straightText(t):t.hold?'курсом на '+wp.name+', невідомо звідки':wp.name+' · '+km(distM(t.lat,t.lon,wp.lat,wp.lon))+' км');
   set('rem',t.hold||t.free||t.stopped?'—':km(rem)+' км');
-  set('eta',t.stopped?'зупинено':t.free?'до виходу з України':t.hold?'невідомо':fmtEta(rem/(t.speed/3.6*mOf(t))));
+  set('eta',t.stopped?'зупинено':t.free?'невідомо · курс втрачено':t.hold?'невідомо':fmtEta(rem/(t.speed/3.6*mOf(t))));
   let nb=null,nd=Infinity;for(const x of TOWNS){const d=distM(t.lat,t.lon,x[1],x[2]);if(d<nd){nd=d;nb=x;}}
   set('near',nb[0]+' · '+km(nd)+' км');
   const ra=raionAt(t.lat,t.lon);
