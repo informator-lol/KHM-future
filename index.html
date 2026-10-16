@@ -317,6 +317,29 @@ input[type=password]:focus{outline:0;border-color:var(--acc);box-shadow:0 0 0 3p
 body:not(.is-admin) #panel,body:not(.is-admin) #modal,body:not(.is-admin) .pinfo .pa{display:none!important}
 body:not(.fb) #logout,body:not(.fb) #lock,body.is-admin #lock{display:none!important}
 body:not(.is-owner) #adminsec{display:none!important}
+
+/* Readable controls and a dedicated map selection mode. */
+:root{--mut:#a4afbf}
+.hint{color:#a4afbf;font-size:12px;line-height:1.55}
+#panel>header{background:#19222e}
+#panel h1::before{animation:none;box-shadow:0 0 0 4px #ff8a1f20}
+.primary,.seg button.on,.types button.on{box-shadow:none}
+.tgt .rot{filter:drop-shadow(0 1px 2px #000) drop-shadow(0 0 2px var(--c))}
+.types button svg{height:42px;width:42px}
+.types button{min-height:100px}
+button:focus-visible,a:focus-visible{outline:2px solid #9cc8ff;outline-offset:3px}
+.pick-actions{display:flex;gap:8px;margin-top:10px}.pick-actions button{flex:1;min-height:44px;padding:9px}
+#origin-summary{padding:10px 12px;background:#132d2b;border:1px solid #2d615b;border-radius:10px;color:#a3e6d8;margin-top:8px}
+#origin-summary:empty{display:none}
+#pickbar{position:fixed;z-index:2200;bottom:20px;left:50%;transform:translateX(-50%);width:min(460px,calc(100% - 24px));padding:16px;background:#131d29;border:1px solid #456078;border-radius:18px;box-shadow:0 12px 50px #0008}
+#pickbar strong{font-size:16px}#pickbar p{margin:7px 0 12px;color:#bdc9d8;line-height:1.5}
+#pickbar .actions{margin-top:12px}
+body.picking #panel,body.picking #lock,body.picking #toast{display:none!important}
+body.picking #map,body.picking #map .leaflet-interactive{cursor:crosshair!important}
+.origin-pin{display:grid;place-items:center;background:#80e0c5;border:3px solid #102a29;border-radius:50%;color:#102a29;font-weight:900;box-shadow:0 0 0 6px #80e0c530}
+@media(min-width:721px){body.is-admin #badge,body.is-admin #status{left:calc(50% + 172px);max-width:calc(100vw - 380px)}#pickbar{bottom:24px}}
+@media(max-width:720px){#pickbar{bottom:12px}.types{gap:6px}.types button{font-size:11px}#panel .ib{min-height:36px}#badge{max-width:96vw;font-size:9px}}
+@media(prefers-reduced-motion:reduce){*,*::before,*::after{animation:none!important;transition:none!important}}
 </style>
 </head>
 <body>
@@ -377,7 +400,7 @@ body:not(.is-owner) #adminsec{display:none!important}
   </div>
 </aside>
 
-<div id="modal" hidden>
+<div id="modal" hidden role="dialog" aria-modal="true" aria-labelledby="mtitle">
   <form id="mform" autocomplete="off">
     <h3 id="mtitle">Додати ціль</h3>
     <div id="mtypew">
@@ -391,8 +414,17 @@ body:not(.is-owner) #adminsec{display:none!important}
       <span class="lbl">Швидкість часу цієї цілі</span>
       <div class="seg" id="mmult"></div>
     </div>
-    <label class="lbl" for="mroute">Курс</label>
+    <div id="mdirw">
+      <label class="lbl" for="mdir">Звідки прилітає</label>
+      <select id="mdir" style="max-width:none;width:100%"></select>
+      <div class="pick-actions"><button type="button" class="ghost" id="pick-origin">⌖ Вибрати старт на карті</button><button type="button" class="ghost" id="clear-origin" hidden>Скинути</button></div>
+      <div id="origin-summary" role="status"></div>
+      <p class="hint">Немає місця в пошуку? Натисніть на карту. Вибрана точка стане початком маршруту.</p>
+      <p class="hint">«З першого міста»: ціль стартує з першого міста маршруту й одразу летить до другого. Якщо місто одне, ціль з'являється на ньому (іконка й стрілка) і стоїть, поки не змінити курс ✎.</p>
+    </div>
+    <label class="lbl" for="mroute">Куди летить · курс</label>
     <input type="text" id="mroute" placeholder="Шепетівка → Хмельницький" spellcheck="false" autocapitalize="off">
+    <button type="button" class="ghost" id="pick-route" style="width:100%;margin-top:8px">＋ Додати точку курсу на карті</button>
     <div id="chips"></div>
     <div id="sugg"></div>
     <button type="button" class="ghost" id="mpeek" disabled>📍 Показати на мапі, куди летітиме</button>
@@ -409,16 +441,17 @@ body:not(.is-owner) #adminsec{display:none!important}
       </div>
       <p class="hint">Синій зі знаком «?» — курс лише передбачений. Червоний без знака — підтверджений. Змінити можна будь-коли через ✎.</p>
     </div>
-    <div id="mdirw">
-      <label class="lbl" for="mdir">Звідки прилітає</label>
-      <select id="mdir" style="max-width:none;width:100%"></select>
-      <p class="hint">«З першого міста»: ціль стартує з першого міста маршруту й одразу летить до другого. Якщо місто одне, ціль з'являється на ньому (іконка й стрілка) і стоїть, поки не змінити курс ✎.</p>
-    </div>
+
     <div class="actions">
       <button type="button" class="ghost" id="mcancel">Скасувати</button>
       <button type="submit" class="primary" id="msave">Додати ціль</button>
     </div>
   </form>
+</div>
+<div id="pickbar" hidden role="region" aria-label="Вибір точки на карті">
+  <strong id="pick-title">Виберіть старт на карті</strong>
+  <p id="pick-help" role="status">Натисніть потрібне місце. Карту можна пересувати та масштабувати.</p>
+  <div class="actions"><button type="button" class="ghost" id="pick-cancel">Скасувати</button><button type="button" class="primary" id="pick-confirm" disabled>Підтвердити точку</button></div>
 </div>
 <div id="peekbar" hidden>
   <p class="pi2" id="peekinfo"></p>
@@ -668,9 +701,9 @@ const stOf=t=>t&&t.status==='predicted'?'predicted':'confirmed';
 const lookOf=t=>t&&t.stopped?'stopped':t&&t.free?'free':stOf(t);
 const tcol=t=>ST[lookOf(t)].color;
 const SVG = {
-  drone:c=>`<svg viewBox="0 0 40 40" width="30" height="30" aria-hidden="true"><path d="M20 2 L38 35 L20 29 L2 35 Z" fill="${c}" stroke="#0b0e12" stroke-width="1.6" stroke-linejoin="round"/><path d="M20 6 V28" stroke="#0b0e12" stroke-width="1.4" opacity=".55"/><path d="M2 35 l4 3.5 M38 35 l-4 3.5" stroke="${c}" stroke-width="2.6" stroke-linecap="round"/></svg>`,
-  jet:c=>`<svg viewBox="0 0 40 48" width="28" height="34" aria-hidden="true"><path d="M20 1 L31 30 L25 28 L25 36 L15 36 L15 28 L9 30 Z" fill="${c}" stroke="#0b0e12" stroke-width="1.6" stroke-linejoin="round"/><rect x="16.5" y="29" width="7" height="8" rx="1.5" fill="#0b0e12" opacity=".55"/><path d="M16.5 38 L20 47 L23.5 38 Z" fill="#fff" opacity=".92"/><path d="M18.3 38 L20 43.5 L21.7 38 Z" fill="#ffb347"/></svg>`,
-  missile:c=>`<svg viewBox="0 0 40 48" width="26" height="34" aria-hidden="true"><path d="M15 29 L8 41 L15 37 Z M25 29 L32 41 L25 37 Z" fill="${c}" stroke="#0b0e12" stroke-width="1.4" stroke-linejoin="round"/><path d="M20 1 C24 6 25 12 25 18 V35 H15 V18 C15 12 16 6 20 1 Z" fill="${c}" stroke="#0b0e12" stroke-width="1.6" stroke-linejoin="round"/><rect x="15" y="14" width="10" height="3" fill="#0b0e12" opacity=".5"/><path d="M17 35 L20 47 L23 35 Z" fill="#ffb347"/></svg>`,
+  drone:c=>`<svg viewBox="0 0 48 48" width="34" height="34" aria-hidden="true"><g fill="${c}" stroke="#101722" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round"><path d="M24 3 46 35 43 39 28 34 27 41 21 41 20 34 5 39 2 35Z"/><path d="M24 7 27 31 24 36 21 31Z" fill="#fff" opacity=".32" stroke="none"/><path d="M8 35 20 31M40 35 28 31M17 43h14" fill="none"/><path d="M24 38v7"/></g></svg>`,
+  jet:c=>`<svg viewBox="0 0 48 48" width="34" height="34" aria-hidden="true"><g fill="${c}" stroke="#101722" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round"><path d="M24 2 28 10 30 23 44 35 44 39 29 34 29 40 34 44 26 43 24 46 22 43 14 44 19 40 19 34 4 39 4 35 18 23 20 10Z"/><path d="M24 7 26 17 24 22 22 17Z" fill="#e7f6ff" stroke="none"/><path d="M22 27h4v13h-4Z" fill="#101925" stroke="none"/><path d="M8 36 19 30M40 36 29 30" fill="none" opacity=".6"/></g></svg>`,
+  missile:c=>`<svg viewBox="0 0 48 48" width="34" height="34" aria-hidden="true"><g fill="${c}" stroke="#101722" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round"><path d="M24 2Q28 7 28 14V23L43 31V35L28 30V38L33 43V46L24 42 15 46V43L20 38V30L5 35V31L20 23V14Q20 7 24 2Z"/><path d="M24 7v31" fill="none" stroke="#fff" opacity=".45"/><path d="M21 15h6M21 36h6" fill="none"/></g></svg>`
 };
 
 /* Група: кілька мініатюр клином (V). Мітка росте разом із кількістю; понад 7 мініатюр не малюємо — число в бейджі. */
@@ -919,11 +952,13 @@ function addRuntime(t){
 }
 const nid=()=>S.targets.length?Math.max(...S.targets.map(t=>t.id))+1:1;   // номер = найбільший з активних + 1; коли цілей немає — знову 1
 const rollSpeed=type=>{const T=TYPES[type];return Math.round(rand(T.speed[0],T.speed[1])/5)*5;};
-function createTarget(type,towns,dirKey,status,prob,note,count,mult){
+function createTarget(type,towns,dirKey,status,prob,note,count,mult,origin){
   const T=TYPES[type];
   const wps=towns.map(x=>({name:x[0],lat:x[1],lon:x[2]}));
   let b,hold=false;
-  if(dirKey==='first'){                       // старт із першого міста маршруту
+  if(origin){
+    b={lat:origin.lat,lon:origin.lng,hdg:bearing(origin.lat,origin.lng,wps[0].lat,wps[0].lon),idx:0};
+  }else if(dirKey==='first'){                       // старт із першого міста маршруту
     const a=wps[0];
     if(wps.length===1){hold=true;b={lat:a.lat,lon:a.lon,hdg:bearing(a.lat,a.lon,49.45,27.0),idx:0};}   // одне місто: ціль стоїть на ньому
     else b={lat:a.lat,lon:a.lon,hdg:bearing(a.lat,a.lon,wps[1].lat,wps[1].lon),idx:1};                  // курс одразу на друге місто
@@ -1128,7 +1163,7 @@ function refreshModal(kick){
 let kickT;
 function refreshModalSoon(){refreshModal(false);clearTimeout(kickT);kickT=setTimeout(()=>refreshModal(true),450);}
 function openModal(mode,id){
-  M.mode=mode;M.id=id||null;
+  M.mode=mode;M.id=id||null;M.origin=null;syncOrigin();
   if(!ADMIN)return;
   const t=id?live().find(x=>x.id===id):null;
   if(t)M.type=t.type;
@@ -1147,11 +1182,56 @@ function openModal(mode,id){
 function syncSt(){$('#mprobw').hidden=M.status!=='predicted';[...$('#mst').children].forEach(b=>b.classList.toggle('on',b.dataset.s===M.status));renderTypes();syncGrp();}
 $('#mprob').addEventListener('input',()=>{M.prob=+$('#mprob').value;$('#mprobv').textContent=M.prob+'%';});
 $('#mst').addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;M.status=b.dataset.s;syncSt();});
-function closeModal(){exitPeek();$('#modal').hidden=true;}
+function closeModal(){if(pickMode)finishPick(false);exitPeek();$('#modal').hidden=true;$('#add').focus();}
 
 /* ───────── перегляд курсу на мапі ─────────
    Кнопка ховає форму й показує на мапі хрестики на кожній точці курсу, лінію маршруту
    та (якщо є) інші однойменні населені пункти — їх можна вибрати прямо на мапі. */
+let pickMode=null,pickCandidate=null,pickMarker=null,pickTrigger=null;
+const pickLayer=L.layerGroup().addTo(map);
+function syncOrigin(){
+  const o=M.origin;
+  $('#origin-summary').textContent=o?'Старт на карті: '+o.lat.toFixed(5)+', '+o.lng.toFixed(5):'';
+  $('#clear-origin').hidden=!o;$('#mdir').disabled=!!o;
+  $('#pick-origin').textContent=o?'⌖ Змінити точку старту':'⌖ Вибрати старт на карті';
+}
+function setPickPoint(ll){
+  pickCandidate={lat:ll.lat,lng:ll.lng};pickLayer.clearLayers();
+  pickMarker=L.marker(ll,{icon:L.divIcon({className:'origin-pin',html:pickMode==='origin'?'A':'+',iconSize:[30,30],iconAnchor:[15,15]}),interactive:false}).addTo(pickLayer);
+  $('#pick-help').textContent=ll.lat.toFixed(5)+', '+ll.lng.toFixed(5)+' · Натисніть інше місце, щоб перемістити точку.';
+  $('#pick-confirm').disabled=false;
+}
+function beginPick(mode){
+  if(!ADMIN)return;
+  exitPeek();pickMode=mode;pickTrigger=document.activeElement;pickCandidate=null;
+  $('#pick-title').textContent=mode==='origin'?'Звідки починається маршрут?':'Додайте точку курсу';
+  $('#pick-help').textContent='Натисніть потрібне місце. Карту можна пересувати та масштабувати.';
+  $('#pick-confirm').disabled=true;
+  $('#modal').classList.add('peek');$('#pickbar').hidden=false;document.body.classList.add('picking');map.closePopup();
+  if(mode==='origin'&&M.origin)setPickPoint(M.origin);
+  $('#pick-cancel').focus();
+}
+function finishPick(apply){
+  if(apply&&pickCandidate){
+    if(pickMode==='origin'){M.origin={...pickCandidate};syncOrigin();}
+    else{
+      let number=1;while(PICK.has(stripKind('Точка карти '+number)))number++;
+      const name='Точка карти '+number;
+      PICK.set(stripKind(name),[name,pickCandidate.lat,pickCandidate.lng,3,[]]);
+      const input=$('#mroute');input.value+=(input.value.trim()?' → ':'')+name;
+      refreshModal(false);
+    }
+  }
+  pickMode=null;pickCandidate=null;pickLayer.clearLayers();
+  document.body.classList.remove('picking');$('#pickbar').hidden=true;$('#modal').classList.remove('peek');
+  if(pickTrigger)pickTrigger.focus();
+}
+map.on('click',e=>{if(pickMode&&ADMIN)setPickPoint(e.latlng.wrap());});
+$('#pick-origin').addEventListener('click',()=>beginPick('origin'));
+$('#pick-route').addEventListener('click',()=>beginPick('route'));
+$('#pick-cancel').addEventListener('click',()=>finishPick(false));
+$('#pick-confirm').addEventListener('click',()=>{if(pickCandidate)finishPick(true);});
+$('#clear-origin').addEventListener('click',()=>{M.origin=null;syncOrigin();});
 const PV=L.layerGroup().addTo(map);
 let peeking=false;
 function pvIcon(label){
@@ -1172,6 +1252,7 @@ function showPeek(noFit){
   const fitPts=[];
   let start=null,startLbl='';
   if(M.mode==='edit'){const t=live().find(x=>x.id===M.id);if(t){start=[t.lat,t.lon];startLbl='ціль зараз тут';}}
+  else if(M.origin){start=[M.origin.lat,M.origin.lng];startLbl='Вибраний старт';}
   else if($('#mdir').value!=='first'){
     const key=$('#mdir').value,sp=spawnPoint({lat:towns[0][1],lon:towns[0][2]},key);
     start=[sp.lat,sp.lon];startLbl='Звідси з\'явиться (приблизно)';
@@ -1229,7 +1310,7 @@ $('#peekok').addEventListener('click',()=>{exitPeek();const f=$('#mform');if(f.r
 $('#add').addEventListener('click',()=>openModal('add'));
 $('#mcancel').addEventListener('click',closeModal);
 $('#modal').addEventListener('mousedown',e=>{if(e.target.id==='modal')closeModal();});
-document.addEventListener('keydown',e=>{if(e.key==='Escape'&&!$('#modal').hidden)closeModal();});
+document.addEventListener('keydown',e=>{if(e.key==='Escape'&&!$('#modal').hidden){if(pickMode)finishPick(false);else if(peeking)exitPeek();else closeModal();}});
 $('#mroute').addEventListener('input',refreshModalSoon);
 $('#nsugg').addEventListener('click',e=>{const b=e.target.closest('button');if(b){$('#mnote').value=b.dataset.t;$('#mnote').focus();}});
 $('#mform').addEventListener('submit',e=>{
@@ -1238,7 +1319,7 @@ $('#mform').addEventListener('submit',e=>{
   if(!parts.length||parts.some(p=>!p.town))return;
   const towns=parts.map(p=>p.town).filter((x,i,a)=>!i||x!==a[i-1]);
   if(M.mode==='add'){
-    const t=createTarget(M.type,towns,$('#mdir').value,M.status,M.prob,$('#mnote').value.trim(),M.count,M.mult);
+    const t=createTarget(M.type,towns,$('#mdir').value,M.status,M.prob,$('#mnote').value.trim(),M.count,M.mult,M.origin);
     toast(`${nameOf(t)} #${t.id} → ${towns.map(x=>x[0]).join(' → ')}`);
   } else {
     const t=live().find(x=>x.id===M.id);
@@ -1321,7 +1402,7 @@ function applyData(d){
 }
 function setAdmin(v){
   if(ADMIN===v)return;
-  ADMIN=v;document.body.classList.toggle('is-admin',v);
+  ADMIN=v;document.body.classList.toggle('is-admin',v);if(!v)closeModal();
   map.invalidateSize();tick();checkPresence();alSync();
 }
 /* ───────── автотривога з alerts.in.ua ─────────
