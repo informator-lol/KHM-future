@@ -340,6 +340,9 @@ body.picking #map,body.picking #map .leaflet-interactive{cursor:crosshair!import
 @media(min-width:721px){body.is-admin #badge,body.is-admin #status{left:calc(50% + 172px);max-width:calc(100vw - 380px)}#pickbar{bottom:24px}}
 @media(max-width:720px){#pickbar{bottom:12px}.types{gap:6px}.types button{font-size:11px}#panel .ib{min-height:36px}#badge{max-width:96vw;font-size:9px}}
 @media(prefers-reduced-motion:reduce){*,*::before,*::after{animation:none!important;transition:none!important}}
+.rl>div{background:rgba(16,24,33,.76);border:1px solid rgba(210,224,238,.18);border-radius:8px;padding:5px 9px;text-shadow:0 1px 2px #000}
+.rl b{font-size:13px;line-height:1.15}.rl small{display:block;font-size:10px;color:#bdc9d8;line-height:1.3}.rl span{font-size:11px;margin-top:3px}
+[data-z="10"] .rl,[data-z="11"] .rl,[data-z="12"] .rl{display:none}
 </style>
 </head>
 <body>
@@ -509,36 +512,14 @@ const OUTLINE = polysOf(GEO.outline);
 const inOblast = (lat,lon)=>OUTLINE.some(p=>inPoly(lat,lon,p));
 const UAPOLYS = polysOf(UA);
 const inUkraine = (lat,lon)=>UAPOLYS.some(p=>inPoly(lat,lon,p));
-const RAIONS = GEO.features.map(f=>({id:f.properties.id,name:DISP[f.properties.id]||f.properties.name,label:f.properties.label,polys:polysOf(f.geometry),eff:-1,auto:0}));
+const DISTRICT_LABELS={shepetivskyi:[50.39,27.04],khmelnytskyi:[49.57,27.12],kamianets:[48.81,26.76]};
+const RAIONS = GEO.features.map(f=>({id:f.properties.id,name:DISP[f.properties.id]||f.properties.name,label:DISTRICT_LABELS[f.properties.id]||f.properties.label,polys:polysOf(f.geometry),eff:-1,auto:0}));
 const raionAt = (lat,lon)=>{for(const r of RAIONS)if(r.polys.some(p=>inPoly(lat,lon,p)))return r.id;return null;};
 const raionName = id => (RAIONS.find(r=>r.id===id)||{}).name;
 
 /* ───────── міста ───────── */
-const TOWNS = [
- ['Хмельницький',49.4229,26.9871,1,['хмельницкий']],
- ["Кам'янець-Подільський",48.6833,26.5833,1,["кам'янець","камянець","каменец","каменец-подольский","кам'янець-под"]],
- ['Шепетівка',50.1833,27.0667,1,['шепетовка']],
- ['Нетішин',50.3350,26.6410,2,['нетешин']],
- ['Славута',50.2986,26.8625,2,[]],
- ['Ізяслав',50.1197,26.8200,2,['изяслав']],
- ['Полонне',50.1236,27.5122,2,['полонное']],
- ['Старокостянтинів',49.7589,27.2150,2,['староконстантинов']],
- ['Красилів',49.6533,26.5167,2,['красилов']],
- ['Волочиськ',49.5333,26.1333,2,['волочиск']],
- ['Дунаївці',48.8833,26.8333,2,['дунаевцы']],
- ["Білогір'я",50.0050,26.4158,3,['белогорье','білогірья']],
- ['Теофіполь',49.8419,26.4119,3,['теофиполь']],
- ['Грицьів',49.9733,27.2278,3,['грицев','грицьив']],
- ['Летичів',49.3833,27.6333,3,['летичев']],
- ['Меджибіж',49.4333,27.4000,3,['меджибож']],
- ['Деражня',49.2667,27.4333,3,[]],
- ['Ярмолинці',49.2333,26.8667,3,['ярмолинцы']],
- ['Городок',49.1500,26.5667,3,[]],
- ['Сатанів',49.0667,26.2667,3,['сатанов']],
- ['Віньківці',49.0167,27.2000,3,['винковцы']],
- ['Чемерівці',48.9900,26.7200,3,['чемеровцы']],
- ['Нова Ушиця',48.8467,27.2667,3,['новая ушица']],
-];
+// Coordinates checked against OpenStreetMap / Nominatim, 2026-10-16.
+const TOWNS = [["Хмельницький",49.4196404,26.9793793,1,["хмельницкий"]],["Кам'янець-Подільський",48.6781294,26.5854027,1,["кам'янець","камянець","каменец","каменец-подольский","кам'янець-под"]],["Шепетівка",50.1809437,27.0651783,1,["шепетовка"]],["Нетішин",50.3338348,26.6496599,2,["нетешин"]],["Славута",50.2962398,26.8658254,2,[]],["Ізяслав",50.1194691,26.8207625,2,["изяслав"]],["Полонне",50.1193439,27.5089702,2,["полонное"]],["Старокостянтинів",49.756163,27.2087889,2,["староконстантинов"]],["Красилів",49.6544431,26.9709084,2,["красилов"]],["Волочиськ",49.5358446,26.2126215,2,["волочиск"]],["Дунаївці",48.886649,26.8476798,2,["дунаевцы"]],["Білогір'я",50.0019489,26.4166916,3,["белогорье","білогірья"]],["Теофіполь",49.84463,26.41525,3,["теофиполь"]],["Гриців",49.9726651,27.2175036,3,["грицев","грицьив","грицьів"]],["Летичів",49.38286,27.62306,3,["летичев"]],["Меджибіж",49.4367227,27.404104,3,["меджибож"]],["Деражня",49.2686082,27.4337581,3,[]],["Ярмолинці",49.1893102,26.8268091,3,["ярмолинцы"]],["Городок",49.1652124,26.5865127,3,[]],["Сатанів",49.2536866,26.2549315,3,["сатанов"]],["Віньківці",49.0347398,27.2320952,3,["винковцы"]],["Чемерівці",49.0087176,26.3405624,3,["чемеровцы"]],["Нова Ушиця",48.83062,27.26678,3,["новая ушица"]]];
 const norm = s => String(s).toLowerCase().replace(/[’'`ʼ‘]/g,'').replace(/ё/g,'е').replace(/ы/g,'и').replace(/э/g,'е').replace(/[^a-zа-яіїєґ0-9\s-]/g,'').replace(/\s+/g,' ').trim();
 /* Великі міста поза областю: не малюються на карті, але їх можна вказати в курсі.
    Назви областей («Рівненщина», «Тернопільщина»…) ведуть на обласний центр. */
@@ -851,9 +832,7 @@ for(const r of RAIONS){
   r.layer=L.geoJSON(f,{style:{weight:1,color:'#6e8094',opacity:.65,fillColor:LV[0].c,fillOpacity:LV[0].fo,dashArray:null,smoothFactor:.4},interactive:false}).addTo(map);
   r.lbl=L.marker(r.label,{interactive:false,keyboard:false,icon:L.divIcon({className:'rl',html:'',iconSize:[0,0]})}).addTo(map);
 }
-for(const t of TOWNS){
-  L.marker([t[1],t[2]],{interactive:false,keyboard:false,icon:L.divIcon({className:'town r'+t[3],html:`<i></i><span>${t[0]}</span>`,iconSize:[0,0]})}).addTo(map);
-}
+// Settlement names are supplied by the OSM tiles: no duplicate offset labels.
 
 function styleRaion(r){
   const L0=LV[r.eff];
@@ -861,7 +840,7 @@ function styleRaion(r){
 }
 function labelRaion(r,since){
   const el=r.lbl.getElement();if(!el)return;
-  el.innerHTML=`<div><b>${r.name}</b>${r.eff>0&&since?`<span>${fmtDur(Date.now()-since)}</span>`:''}</div>`;
+  el.innerHTML=`<div><b>${r.name}</b><small>район</small>${r.eff>0&&since?`<span>${fmtDur(Date.now()-since)}</span>`:''}</div>`;
 }
 
 /* ───────── цілі на карті ───────── */
