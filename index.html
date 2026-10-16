@@ -447,7 +447,7 @@ body.picking #map,body.picking #map .leaflet-interactive{cursor:crosshair!import
         <label class="lbl" for="mprob">Імовірність, що ціль там / летить туди: <b id="mprobv" style="color:var(--tx)">60%</b></label>
         <input type="range" id="mprob" min="5" max="95" step="5" value="60" style="width:100%;accent-color:#3b9bff">
       </div>
-      <p class="hint">Синій — непідтверджений. Червоний — підтверджений. Зелений із перекресленим радаром — не фіксується: мітка залишається на останній відомій позиції. Коли ціль знову з’явиться, виберіть «Підтверджений».</p>
+      <p class="hint">Синій — непідтверджений. Червоний — підтверджений. Зелений із перекресленим радаром — не фіксується: рух за заданим курсом триває, позиція розрахункова. Коли ціль знову з’явиться, виберіть «Підтверджений» — пройдений шлях зберігається.</p>
     </div>
 
     <div class="actions">
@@ -737,7 +737,7 @@ const sigOf=x=>JSON.stringify([x.type,x.wps,x.speed,x.b,x.t0,!!x.hold,stOf(x),x.
    Поточне місце кожен браузер рахує сам із часу, що минув, тож усі бачать її в одній точці. */
 function catchUp(t,cap=20000){
   const need=(Date.now()-t.t0)/1000*mOf(t)-t.simDone;
-  if(need<=0||t.done||t.hold||t.stopped||stOf(t)==='untracked')return;   // зупинена ціль не рухається
+  if(need<=0||t.done||t.hold||t.stopped)return;   // зупинена ціль не рухається
   const d=Math.min(need,cap);stepT(t,d);t.simDone+=d;
 }
 let pendingSpeedMigration=false;
@@ -811,7 +811,8 @@ const straightText=t=>{
   const place=aheadPlace(t);
   return place?'прямо, курсом на '+place:'прямо, напрямок '+compass(t.hdg)+' · населений пункт не визначено';
 };
-const routeText = t => stOf(t)==='untracked'?'Не фіксується · остання відома позиція':t.free?straightText(t):t.hold&&t.wps[t.idx]?'курсом на '+t.wps[t.idx].name+', невідомо звідки':t.wps.slice(t.idx).map(w=>w.name).join(' → ');
+const routeTextBase = t => t.free?straightText(t):t.hold&&t.wps[t.idx]?'курсом на '+t.wps[t.idx].name+', невідомо звідки':t.wps.slice(t.idx).map(w=>w.name).join(' → ');
+const routeText=t=>(stOf(t)==='untracked'?'Не фіксується · розрахунковий курс: ':'')+routeTextBase(t);
 const courseLL = t => t.free?[[t.lat,t.lon],moveBy(t.lat,t.lon,70000,t.hdg)]:[[t.lat,t.lon],...t.wps.slice(t.idx).map(w=>[w.lat,w.lon])];
 
 const BRG={N:0,NE:45,E:90,SE:135,S:180,SW:225,W:270,NW:315};
@@ -906,15 +907,15 @@ function fillPopup(t,el){
   const sb=el.querySelector('[data-a="stop"]');if(sb){sb.textContent=t.stopped?'▶ Продовжити':'⏸ Зупинити';sb.classList.toggle('go',!!t.stopped);}
   el.querySelectorAll('[data-a="type"]').forEach(b=>b.classList.toggle('on',b.dataset.k===t.type));
   const mh=el.querySelector('[data-h="move"]');if(mh)mh.hidden=!t.stopped;
-  set('spd',stOf(t)==='untracked'?'невідомо':t.stopped?'0 км/год · зупинено':t.speed+' км/год');
+  set('spd',t.stopped?'0 км/год · зупинено':t.speed+' км/год');
   set('prob',stOf(t)==='predicted'&&!t.free&&!t.stopped?(t.prob||60)+'% що летить туди':'—');
-  set('st',stOf(t)==='untracked'?'Не фіксується · остання відома позиція':t.stopped?'Зупинено ? · курс збережено':t.free?'Курс втрачено ? · летить прямо':stOf(t)==='predicted'?'Непідтверджений ?':'Підтверджений');
+  set('st',stOf(t)==='untracked'?'Не фіксується · розрахункова позиція':t.stopped?'Зупинено ? · курс збережено':t.free?'Курс втрачено ? · летить прямо':stOf(t)==='predicted'?'Непідтверджений ?':'Підтверджений');
   const pi=el.querySelector('.pi');if(pi)pi.innerHTML=SVG[t.type](tcol(t));
   set('hdg',String(Math.round(t.hdg)%360).padStart(3,'0')+'° '+compass(t.hdg));
   set('route',routeText(t));
-  set('next',stOf(t)==='untracked'?'очікуємо повторної фіксації':t.stopped?'стоїть на місці · далі '+(t.free?'прямо':wp.name):t.free?straightText(t):t.hold?'курсом на '+wp.name+', невідомо звідки':wp.name+' · '+km(distM(t.lat,t.lon,wp.lat,wp.lon))+' км');
-  set('rem',stOf(t)==='untracked'||t.hold||t.free||t.stopped?'—':km(rem)+' км');
-  set('eta',stOf(t)==='untracked'?'невідомо':t.stopped?'зупинено':t.free?'невідомо · курс втрачено':t.hold?'невідомо':fmtEta(rem/(t.speed/3.6*mOf(t))));
+  set('next',t.stopped?'стоїть на місці · далі '+(t.free?'прямо':wp.name):t.free?straightText(t):t.hold?'курсом на '+wp.name+', невідомо звідки':wp.name+' · '+km(distM(t.lat,t.lon,wp.lat,wp.lon))+' км');
+  set('rem',t.hold||t.free||t.stopped?'—':km(rem)+' км');
+  set('eta',t.stopped?'зупинено':t.free?'невідомо · курс втрачено':t.hold?'невідомо':fmtEta(rem/(t.speed/3.6*mOf(t))));
   let nb=null,nd=Infinity;for(const x of TOWNS){const d=distM(t.lat,t.lon,x[1],x[2]);if(d<nd){nd=d;nb=x;}}
   set('near',nb[0]+' · '+km(nd)+' км');
   const ra=raionAt(t.lat,t.lon);
@@ -936,7 +937,7 @@ function syncLook(t,rt){
   const cb=el.querySelector('.cnt');cb.style.setProperty('--c',col);cb.textContent='×'+cn;
   rt.rot.style.setProperty('--c',col);rt.rot.innerHTML=iconHTML(t,col);
   const ha=el.querySelector('.harrow');ha.style.setProperty('--c',col);ha.querySelector('path').setAttribute('fill',col);
-  rt.line.setStyle({color:col,dashArray:pred?'4 7':null,weight:pred?1.6:2.4,opacity:untracked?0:pred?.8:.95});
+  rt.line.setStyle({color:col,dashArray:pred?'4 7':null,weight:pred?1.6:2.4,opacity:untracked?.45:pred?.8:.95});
   rt.trail.setStyle({color:col});
 }
 function addRuntime(t){
