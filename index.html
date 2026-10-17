@@ -761,7 +761,8 @@ const CYR=/[А-Яа-яІіЇїЄєҐґ]/;
 const OB_C=[49.42,26.99];     // ближчі до Хмельницького збіги — вище (сіл з однаковою назвою в Україні сотні)
 const shortSub=(a,b)=>[a,b].filter(Boolean).map(s=>String(s).replace(/ область$/,' обл.')).join(' · ');
 async function fetchCandidates(q){
- const j=await getJSON('https://photon.komoot.io/api/?q='+encodeURIComponent(q)+'&limit=20&osm_tag=place&lat='+OB_C[0]+'&lon='+OB_C[1]);
+ // Use local OSM names instead of inheriting the browser's English language.
+ const j=await getJSON('https://photon.komoot.io/api/?q='+encodeURIComponent(q)+'&lang=default&limit=20&osm_tag=place&lat='+OB_C[0]+'&lon='+OB_C[1]);
  const out=[];
  for(const f of j.features||[]){
   const p=f.properties||{},coords=f.geometry?.coordinates;
