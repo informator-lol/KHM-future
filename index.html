@@ -311,7 +311,7 @@ select:focus,input:focus{outline:0;border-color:var(--acc);box-shadow:0 0 0 3px 
 /* автотривога */
 input[type=password]{background:#0d1218;border:1px solid #2a3340;border-radius:11px;color:var(--tx);font:inherit;font-size:15px;padding:10px 11px;width:100%;max-width:none}
 input[type=password]:focus{outline:0;border-color:var(--acc);box-shadow:0 0 0 3px rgba(255,138,31,.2)}
-#stAl:empty{display:none}
+
 #alsec .hint a{color:#9cc8ff}
 /* розділення ролей (завжди в кінці, з !important): глядач не бачить ні панелі, ні кнопок керування */
 body:not(.is-admin) #panel,body:not(.is-admin) #modal,body:not(.is-admin) .pinfo .pa{display:none!important}
@@ -388,6 +388,9 @@ body.capture-mode .tgt{cursor:pointer}
 body.capture-mode #panel #pbody>section:not(:first-child){display:none}
 body.capture-mode #panel{bottom:auto}
 @media(max-width:720px){body.capture-mode #panel{top:auto;bottom:8px}}
+#about-link{position:absolute;z-index:950;right:12px;bottom:58px;display:block;padding:10px 14px;border:1px solid #34455c;border-radius:12px;background:#141e2bf2;color:#e8eaed;text-decoration:none;font-weight:650;box-shadow:0 4px 18px #0005}
+#about-link:hover{background:#243246}#about-link:focus-visible{outline:2px solid #ff8a1f;outline-offset:3px}
+@media(max-width:720px){#about-link{top:140px;bottom:auto;right:8px}}
 </style>
 </head>
 <body>
@@ -411,9 +414,10 @@ body.capture-mode #panel{bottom:auto}
 
 
 <div id="map"></div>
+<a id="about-link" href="about.html">ⓘ Про сайт</a>
 <div id="badge"><i></i>Неофіційна карта · за відкритими джерелами · можливі неточності</div>
 <div id="offline" hidden role="alert">⚠ Адміністратора немає в мережі — карта наразі не оновлюється</div>
-<div id="status"><span id="stNet"></span><span id="stPing"></span><span id="stOn"></span><span id="stAdm"></span><span id="stAl"></span></div>
+<div id="status"><span id="stNet"></span><span id="stPing"></span><span id="stOn"></span><span id="stAdm"></span></div>
 <div id="clock"></div>
 <button class="ib" id="lock" title="Вхід для адміністратора" aria-label="Вхід для адміністратора">🔒</button>
 
@@ -1538,12 +1542,6 @@ function tick(){
   }
   updateList();
   for(const [id,rt] of RT){if(rt.marker.isPopupOpen()||mobileTargetId===id){const t=live().find(x=>x.id===id);if(t)fillPopup(t,rt.pop);}}
-  const am=S.alarmMeta,ael=$('#stAl');
-  if(am&&am.on){
-    const age=Date.now()-(am.t||0);
-    ael.textContent=am.error?'Тривоги: дані недоступні · останній стан':!am.t?'Тривоги: очікуємо дані':age>300000?'Тривоги: застарілі дані ('+Math.round(age/60000)+' хв)':'Тривоги: авто · '+(am.source==='tryvoha'?'Tryvoha.online':'джерело невідоме');
-    ael.style.color=am.error||age>300000?'#ffb579':'#6ee7a0';
-  }else{ael.textContent=am&&am.t?'Тривоги: авто вимкнено · останній стан':'';ael.style.color='#a4afbf';}
   const d=new Date();$('#clock').textContent=`${pad2(d.getDate())}/${pad2(d.getMonth()+1)}/${String(d.getFullYear()).slice(2)}, ${pad2(d.getHours())}:${pad2(d.getMinutes())}`;
   if(dirty||(!USE_FB&&ADMIN))commit();
 }
