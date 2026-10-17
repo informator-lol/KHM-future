@@ -396,7 +396,7 @@ body.dialog-open #panel,body.dialog-open #target-sheet{pointer-events:none}
 <section id="target-sheet" hidden aria-label="Керування ціллю"><header><b>Керування ціллю</b><button id="sheet-close" class="ib" aria-label="Закрити картку">✕</button></header><div id="sheet-content"></div></section>
 <div id="share-dialog" class="dialog-layer" hidden role="dialog" aria-modal="true" aria-labelledby="share-title">
  <div class="dialog-card"><header><h2 id="share-title">Картка для публікації</h2><button id="share-close" class="ib" aria-label="Закрити попередній перегляд">✕</button></header>
- <p class="hint">PNG HD · 1536 × 1536 · знімок стану на момент натискання</p>
+ <p class="hint">PNG HD · знімок вибраних цілей на момент натискання</p>
  <img id="share-preview" alt="Попередній перегляд інформаційної картки" hidden>
  <p id="share-message" role="status">Створюю картку…</p>
  <div class="actions"><button class="ghost" id="share-save" disabled>Завантажити PNG</button><button class="primary" id="share-copy" disabled>Копіювати зображення</button></div>
@@ -418,6 +418,15 @@ body.dialog-open #panel,body.dialog-open #target-sheet{pointer-events:none}
     <button class="ib" id="collapse" title="Згорнути / розгорнути" aria-label="Згорнути або розгорнути панель">▾</button>
   </header>
   <div id="pbody">
+    <section>
+      <button type="button" class="primary" id="capture-many">▣ Зробити скріншот</button>
+      <div id="capture-selection" hidden>
+        <p class="hint">Позначте цілі для одного зображення. Кожна матиме свій номер, карту та інформацію.</p>
+        <div id="capture-options"></div>
+        <p id="capture-count" class="hint" role="status"></p>
+        <div class="actions"><button type="button" class="ghost" id="capture-cancel">Скасувати</button><button type="button" class="primary" id="capture-create" disabled>Створити PNG</button></div>
+      </div>
+    </section>
     <section>
       <h2>Райони</h2>
       <div id="raions"></div>
@@ -1899,14 +1908,58 @@ function clipboardImage(blobPromise){
  return navigator.clipboard.write([new ClipboardItem({'image/png':blobPromise})]);
 }
 function closeShare(){SHARE.token++;$('#share-dialog').hidden=true;document.body.classList.remove('dialog-open');if(SHARE.url)URL.revokeObjectURL(SHARE.url);SHARE.url=null;SHARE.blob=null;$('#share-preview').removeAttribute('src');if(SHARE.trigger?.isConnected)SHARE.trigger.focus();}
-async function captureTarget(id){
- const target=live().find(t=>t.id===id);if(!target){toast('Ціль уже недоступна');return;}
- const comment=RT.get(target.id)?.pop.querySelector('.cm');if(ADMIN&&comment)setNote(target,comment.value);
- catchUp(target);const t={...target,wps:target.wps.map(w=>({...w}))};
+const captureIds=new Set();
+function updateCaptureCount(){
+ $('#capture-count').textContent='Вибрано цілей: '+captureIds.size;
+ $('#capture-create').disabled=!captureIds.size;
+}
+function renderCaptureOptions(){
+ const container=$('#capture-options');container.replaceChildren();
+ const targets=live(),available=new Set(targets.map(t=>t.id));
+ for(const id of captureIds)if(!available.has(id))captureIds.delete(id);
+ for(const t of targets){
+  const label=document.createElement('label');label.className='chk';
+  const input=document.createElement('input');input.type='checkbox';input.checked=captureIds.has(t.id);
+  input.addEventListener('change',()=>{input.checked?captureIds.add(t.id):captureIds.delete(t.id);updateCaptureCount();});
+  const text=document.createElement('span');text.textContent=nameOf(t)+' #'+t.id+' · '+(t.wps[t.idx]?.name||'Курс не задано');
+  label.append(input,text);container.append(label);
+ }
+ if(!targets.length){const p=document.createElement('p');p.className='hint';p.textContent='Немає активних цілей. Спочатку додайте ціль.';container.append(p);}
+ updateCaptureCount();
+}
+$('#capture-many').addEventListener('click',()=>{if(!ADMIN)return;$('#capture-selection').hidden=false;renderCaptureOptions();});
+$('#capture-cancel').addEventListener('click',()=>{$('#capture-selection').hidden=true;captureIds.clear();updateCaptureCount();});
+$('#capture-create').addEventListener('click',()=>{if(ADMIN)captureTargets([...captureIds]);});
+async function renderShareCards(targets){
+ if(targets.length===1)return renderShareCard(targets[0]);
+ const columns=2,cell=768,labelHeight=48,rows=Math.ceil(targets.length/columns);
+ const canvas=document.createElement('canvas');canvas.width=columns*cell;canvas.height=rows*(cell+labelHeight);
+ const ctx=canvas.getContext('2d');if(!ctx)throw new Error('Не вдалося створити зображення. Виберіть менше цілей.');
+ ctx.fillStyle='#0c1420';ctx.fillRect(0,0,canvas.width,canvas.height);
+ for(let i=0;i<targets.length;i++){
+  const blob=await renderShareCard(targets[i]),url=URL.createObjectURL(blob),img=new Image();
+  try{
+   await new Promise((resolve,reject)=>{img.onload=resolve;img.onerror=()=>reject(new Error('Не вдалося об’єднати картки'));img.src=url;});
+   const x=(i%columns)*cell,y=Math.floor(i/columns)*(cell+labelHeight);
+   ctx.fillStyle='#ff8a1f';ctx.font='700 25px system-ui';ctx.fillText((i+1)+'. '+nameOf(targets[i])+' · #'+targets[i].id,x+36,y+33);
+   ctx.drawImage(img,x,y+labelHeight,cell,cell);
+   ctx.strokeStyle='#34455c';ctx.lineWidth=2;ctx.strokeRect(x+1,y+1,cell-2,cell+labelHeight-2);
+  }finally{URL.revokeObjectURL(url);}
+ }
+ return new Promise((resolve,reject)=>canvas.toBlob(b=>b?resolve(b):reject(new Error('Зображення завелике. Виберіть менше цілей.')),'image/png'));
+}
+function captureTarget(id){return captureTargets([id]);}
+async function captureTargets(ids){
+ const current=live(),targets=[...new Set(ids)].map(id=>current.find(t=>t.id===id));
+ if(!targets.length||targets.some(t=>!t)){toast('Список цілей змінився. Перевірте вибір.');renderCaptureOptions();return;}
+ const snapshots=targets.map(target=>{
+  const comment=RT.get(target.id)?.pop.querySelector('.cm');if(ADMIN&&comment)setNote(target,comment.value);
+  catchUp(target);return {...target,wps:target.wps.map(w=>({...w}))};
+ });
  const token=++SHARE.token;SHARE.trigger=document.activeElement;SHARE.blob=null;
  $('#share-dialog').hidden=false;document.body.classList.add('dialog-open');$('#share-preview').hidden=true;
- $('#share-message').textContent='Створюю HD-картку 1536 × 1536…';$('#share-copy').disabled=$('#share-save').disabled=true;$('#share-close').focus();
- const blobPromise=renderShareCard(t);
+ $('#share-message').textContent='Створюю спільний PNG · цілей: '+snapshots.length+'…';$('#share-copy').disabled=$('#share-save').disabled=true;$('#share-close').focus();
+ const blobPromise=renderShareCards(snapshots);
  // Start clipboard access during the click to retain activation on mobile Safari.
  const copied=clipboardImage(blobPromise).then(()=>true,()=>false);
  try{
