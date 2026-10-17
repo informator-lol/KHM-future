@@ -470,6 +470,8 @@ body.picking #about-link,body.sheet-open #about-link{display:none}
 #comments-form{padding:14px;border-top:1px solid #30455f;background:#142235}#comments-form label{display:block;font-size:12px;font-weight:700;color:#bfd4ed;margin-bottom:8px}#comments-text{width:100%;resize:vertical;min-height:96px;max-height:200px;background:#0e1927;color:#edf3fc;border:1px solid #3b516b;border-radius:10px;padding:11px;font:14px/1.6 system-ui}#comments-text:focus{outline:2px solid #7bcfff;outline-offset:1px}.comments-form-footer{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:9px}.comments-form-footer .primary{width:auto;font-size:12px}.comments-form-footer small{color:#9db4cf;font-size:11px}#comments-message{margin:0;padding:0 14px 12px;font-size:12px;line-height:1.5;color:#b9cee7}#comments-message:empty{display:none}
 body:not(.is-admin) #comments-form,body:not(.is-admin) .comment-post button{display:none}body.comments-open #comments-toggle{visibility:hidden}body.picking #comments-toggle{display:none}body.dialog-open #comments-panel{pointer-events:none}
 @media(max-width:720px){#comments-toggle{top:192px;bottom:auto;right:10px;padding:10px;font-size:12px}#comments-panel{top:auto;bottom:max(8px,env(safe-area-inset-bottom));left:8px;right:8px;width:auto;max-height:82dvh;height:650px;border-radius:18px}#comments-text{font-size:16px;min-height:84px;max-height:130px}#comments-form{padding:12px}body.comments-open #panel,body.comments-open #target-sheet{visibility:hidden}.comment-post button{min-height:36px}}
+#mst button[data-s="locating"],#defSt button[data-s="locating"]{grid-column:1/-1;color:#ffb0b0;border-color:#874047;background:#2b1c24;line-height:1.4}#defSt button[data-s="locating"]{flex-basis:100%}#mst button[data-s="locating"].on,#defSt button[data-s="locating"].on{background:#ff3b3b;color:#fff;border-color:#ff3b3b}
+.tgt.is-locating .qm{display:block;background:#27151b;color:#ff6666;border:1.5px solid #ff3b3b;width:21px;height:21px;font-size:15px;line-height:18px;right:-9px;top:-10px;box-shadow:0 0 0 2px #0b0e12}
 </style>
 <link rel="icon" type="image/png" href="./favicon.png?v=1">
 <link rel="apple-touch-icon" href="./favicon.png?v=1">
@@ -564,7 +566,7 @@ body:not(.is-admin) #comments-form,body:not(.is-admin) .comment-post button{disp
       <label class="lbl" for="defDir" style="margin-top:0">Звідки з'являється</label>
       <select id="defDir" style="max-width:none;width:100%"></select>
       <span class="lbl">Статус курсу</span>
-      <div class="seg" id="defSt"><button type="button" data-s="predicted">? Непідтверджений</button><button type="button" data-s="confirmed">Підтверджений</button></div>
+      <div class="seg" id="defSt"><button type="button" data-s="predicted">? Непідтверджений</button><button type="button" data-s="confirmed">Підтверджений</button><button type="button" data-s="locating" title="Позиція уточнюється, курс відомий">? Позиція уточнюється</button></div>
       <p class="hint">Це початкові значення у формі «Додати ціль». Для кожної цілі їх можна змінити там же.</p>
     </section>
     <section id="adminsec">
@@ -611,7 +613,7 @@ body:not(.is-admin) #comments-form,body:not(.is-admin) .comment-post button{disp
     <div id="nsugg"><button type="button" data-t="Локаційно втрачений">Локаційно втрачений</button></div>
     <div id="mstw">
       <span class="lbl">Статус курсу</span>
-      <div class="seg" id="mst"><button type="button" data-s="untracked"><svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><circle cx="12" cy="12" r="8" fill="none" stroke="currentColor" stroke-width="1.7"/><path d="M12 7a5 5 0 0 1 5 5M12 12l5-5M4 4l16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg> Не фіксується</button><button type="button" data-s="predicted">? Непідтверджений</button><button type="button" data-s="confirmed">Підтверджений</button></div>
+      <div class="seg" id="mst"><button type="button" data-s="untracked"><svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><circle cx="12" cy="12" r="8" fill="none" stroke="currentColor" stroke-width="1.7"/><path d="M12 7a5 5 0 0 1 5 5M12 12l5-5M4 4l16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg> Не фіксується</button><button type="button" data-s="predicted">? Непідтверджений</button><button type="button" data-s="confirmed">Підтверджений</button><button type="button" data-s="locating" title="Позиція уточнюється, курс відомий">? Позиція уточнюється</button></div>
       <div id="mprobw" hidden>
         <label class="lbl" for="mprob">Імовірність, що ціль там / летить туди: <b id="mprobv" style="color:var(--tx)">60%</b></label>
         <input type="range" id="mprob" min="5" max="95" step="5" value="60" style="width:100%;accent-color:#3b9bff">
@@ -858,8 +860,8 @@ const TYPES = {
 };
 const ORDER = ['jet','missile','drone'];
 const RADAR_OFF="<svg viewBox=\"0 0 24 24\" width=\"16\" height=\"16\" aria-hidden=\"true\"><circle cx=\"12\" cy=\"12\" r=\"8\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.7\"/><path d=\"M12 7a5 5 0 0 1 5 5M12 12l5-5M4 4l16 16\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\"/></svg>";
-const ST={untracked:{color:'#57dc9b',name:'Не фіксується'},predicted:{color:'#3b9bff',name:'Непідтверджений'},confirmed:{color:'#ff3b3b',name:'Підтверджений'},free:{color:'#ffd43b',name:'Курс втрачено'},stopped:{color:'#3b9bff',name:'Зупинено'}};
-const stOf=t=>t&&t.status==='untracked'?'untracked':t&&t.status==='predicted'?'predicted':'confirmed';
+const ST={locating:{color:'#ff3b3b',name:'Позиція уточнюється'},untracked:{color:'#57dc9b',name:'Не фіксується'},predicted:{color:'#3b9bff',name:'Непідтверджений'},confirmed:{color:'#ff3b3b',name:'Підтверджений'},free:{color:'#ffd43b',name:'Курс втрачено'},stopped:{color:'#3b9bff',name:'Зупинено'}};
+const stOf=t=>['untracked','predicted','locating'].includes(t?.status)?t.status:'confirmed';
 const lookOf=t=>stOf(t)==='untracked'?'untracked':t&&t.stopped?'stopped':t&&t.free?'free':stOf(t);
 const tcol=t=>ST[lookOf(t)].color;
 const SVG = {
@@ -1117,7 +1119,7 @@ function fillPopup(t,el){
   const mh=el.querySelector('[data-h="move"]');if(mh)mh.hidden=!t.stopped;
   set('spd',t.stopped?'0 км/год · зупинено':t.speed+' км/год');
   set('prob',stOf(t)==='predicted'&&!t.free&&!t.stopped?(t.prob||60)+'% що летить туди':'—');
-  set('st',stOf(t)==='untracked'?'Не фіксується · розрахункова позиція':t.stopped?'Зупинено ? · курс збережено':t.free?'Курс втрачено ? · летить прямо':stOf(t)==='predicted'?'Непідтверджений ?':'Підтверджений');
+  set('st',stOf(t)==='locating'&&!t.free&&!t.stopped?'Позиція уточнюється, курс відомий':stOf(t)==='untracked'?'Не фіксується · розрахункова позиція':t.stopped?'Зупинено ? · курс збережено':t.free?'Курс втрачено ? · летить прямо':stOf(t)==='predicted'?'Непідтверджений ?':'Підтверджений');
   const pi=el.querySelector('.pi');if(pi)pi.innerHTML=shareIconSvg(t,tcol(t));
   set('hdg',String(Math.round(t.hdg)%360).padStart(3,'0')+'° '+compass(t.hdg));
   set('route',routeText(t));
@@ -1132,8 +1134,9 @@ function syncLook(t,rt){
   const untracked=stOf(t)==='untracked';
   el.classList.toggle('capture-selected',captureMode&&captureIds.has(t.id));
   el.classList.toggle('is-untracked',untracked);
+  el.classList.toggle('is-locating',lookOf(t)==='locating');
   el.classList.toggle('is-pred',pred);
-  const badge=el.querySelector('.qm');if(badge.dataset.status!==stOf(t)){badge.dataset.status=stOf(t);badge.innerHTML=untracked?RADAR_OFF:'?';badge.title=untracked?'Не фіксується':'';}
+  const badge=el.querySelector('.qm');if(badge.dataset.status!==stOf(t)){badge.dataset.status=stOf(t);badge.innerHTML=untracked?RADAR_OFF:'?';badge.title=untracked?'Не фіксується':stOf(t)==='locating'?'Позиція уточнюється, курс відомий':'';}
   el.title=`${nameOf(t)} #${t.id}`;
   const cn=cOf(t);
   if(rt.col===col&&rt.pred===pred&&rt.ty===t.type&&rt.cn===cn&&rt.members===membersOf(t).join(','))return;
@@ -1195,7 +1198,7 @@ function createTarget(type,towns,dirKey,status,prob,note,count,mult,origin,membe
     const sp=spawnPoint(wps[0],dirKey);
     b={lat:sp.lat,lon:sp.lon,hdg:bearing(sp.lat,sp.lon,wps[0].lat,wps[0].lon),idx:0};
   }
-  const t={id:(S.nextId=nid()+1,nid()),type,wps,speed:rollSpeed(type),count:Math.max(1,Math.min(30,count||1)),mult:mult||S.mult,note:note||'',stopped:false,b,t0:Date.now(),hold,status:status==='untracked'?'untracked':status==='predicted'?'predicted':'confirmed',prob:status==='predicted'?(prob||60):0};
+  const t={id:(S.nextId=nid()+1,nid()),type,wps,speed:rollSpeed(type),count:Math.max(1,Math.min(30,count||1)),mult:mult||S.mult,note:note||'',stopped:false,b,t0:Date.now(),hold,status:stOf({status}),prob:status==='predicted'?(prob||60):0};
   t.members=members;hydrate(t);S.targets.push(t);addRuntime(t);renderList();tick();commit();
   return t;
 }
@@ -1206,7 +1209,7 @@ function editRoute(t,towns,status,prob,type,note,count,mult,preserveRoute=false,
   if(type&&TYPES[type]&&type!==t.type){t.type=type;t.speed=rollSpeed(type);}
   if(members)t.members=members.slice();normalizeMembers(t);
   if(note!==undefined)t.note=note||'';
-  if(status){t.status=status==='untracked'?'untracked':status==='predicted'?'predicted':'confirmed';t.prob=t.status==='predicted'?(prob||60):0;}
+  if(status){t.status=stOf({status});t.prob=t.status==='predicted'?(prob||60):0;}
   if(preserveRoute){
     t.b={lat:t.lat,lon:t.lon,hdg:t.hdg,idx:t.idx};t.t0=Date.now();t.simDone=0;
     refreshTarget(t);return;
@@ -1315,7 +1318,7 @@ function updateList(){
     const sbt=it.querySelector('[data-a="stop"]');if(sbt){const w=t.stopped?'▶':'⏸';if(sbt.textContent!==w){sbt.textContent=w;sbt.title=t.stopped?'Продовжити рух':'Зупинити';}}
     const need=lookOf(t)!=='confirmed',nm=it.querySelector('b'),tag=nm.querySelector('.qtag');   // «?» і колір у списку слідують за станом цілі
     if(need&&!tag)nm.insertAdjacentHTML('beforeend',' <span class="qtag">?</span>');else if(!need&&tag)tag.remove();
-    const badge=nm.querySelector('.qtag');if(badge){const u=stOf(t)==='untracked';badge.innerHTML=u?RADAR_OFF:'?';badge.style.background=u?ST.untracked.color:'';badge.style.color=u?'#0d241a':'';badge.title=u?'Не фіксується':'';}
+    const badge=nm.querySelector('.qtag');if(badge){const u=stOf(t)==='untracked';badge.innerHTML=u?RADAR_OFF:'?';const locating=lookOf(t)==='locating';badge.style.background=u?ST.untracked.color:locating?'#30181e':'';badge.style.color=u?'#0d241a':locating?'#ff6666':'';badge.style.outline=locating?'1px solid #ff3b3b':'';badge.title=u?'Не фіксується':locating?'Позиція уточнюється, курс відомий':'';}
     const ti=it.querySelector('.ti'),col=tcol(t),tk=col+membersOf(t).join(',');if(ti&&ti.dataset.c!==tk){ti.dataset.c=tk;ti.innerHTML=shareIconSvg(t,col);}
   }
 }
@@ -1335,7 +1338,7 @@ const M={mode:'add',type:'jet',id:null,status:'confirmed',prob:60,count:1,mult:1
 const DIRS=[['auto','Ззовні області (найближчий край)'],['first','З першого міста маршруту'],['N','З півночі'],['NE','З північного сходу'],['E','Зі сходу'],['SE','З південного сходу'],['S','З півдня'],['SW','З південного заходу'],['W','Із заходу'],['NW','З північного заходу']];
 $('#mdir').innerHTML=DIRS.map(d=>`<option value="${d[0]}">${d[1]}</option>`).join('');
 const DEFS={dir:'auto',status:'confirmed'};
-try{const d=JSON.parse(localStorage.getItem('khm-defs'));if(d){if(DIRS.some(x=>x[0]===d.dir))DEFS.dir=d.dir;if(d.status==='predicted'||d.status==='confirmed')DEFS.status=d.status;}}catch(e){}
+try{const d=JSON.parse(localStorage.getItem('khm-defs'));if(d){if(DIRS.some(x=>x[0]===d.dir))DEFS.dir=d.dir;if(['predicted','confirmed','locating'].includes(d.status))DEFS.status=d.status;}}catch(e){}
 const saveDefs=()=>{try{localStorage.setItem('khm-defs',JSON.stringify(DEFS));}catch(e){}};
 $('#defDir').innerHTML=DIRS.map(d=>`<option value="${d[0]}">${d[1]}</option>`).join('');
 $('#defDir').value=DEFS.dir;$('#mdir').value=DEFS.dir;
@@ -2058,6 +2061,10 @@ async function renderShareCard(t){
  }
  const [tx,ty]=project(t.lat,t.lon);ctx.beginPath();ctx.arc(tx,ty,20,0,Math.PI*2);ctx.fillStyle='#0c1420ed';ctx.fill();ctx.strokeStyle=color;ctx.lineWidth=2;ctx.stroke();
  ctx.save();ctx.translate(tx,ty);ctx.rotate(t.hdg*Math.PI/180);ctx.drawImage(targetImage,-16,-16,32,32);ctx.restore();
+ if(lookOf(t)==='locating'){
+  ctx.fillStyle='#27151b';ctx.strokeStyle='#ff3b3b';ctx.lineWidth=1.5;ctx.beginPath();ctx.arc(tx+16,ty-16,9,0,Math.PI*2);ctx.fill();ctx.stroke();
+  ctx.fillStyle='#ff6666';ctx.font='800 13px system-ui';ctx.textAlign='center';ctx.fillText('?',tx+16,ty-11);ctx.textAlign='left';
+ }
  if(cOf(t)>1){ctx.font='800 11px system-ui';const count='×'+cOf(t),bw=ctx.measureText(count).width+10;
   ctx.fillStyle=color;ctx.fillRect(tx+9,ty+10,bw,17);ctx.fillStyle='#0c1420';ctx.fillText(count,tx+14,ty+23);
  }
