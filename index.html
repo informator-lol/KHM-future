@@ -1991,6 +1991,12 @@ addEventListener('online',sendPending);
 renderList();tick();
 setInterval(tick,1000);
 
+// Cosmetic heading easing, independent of simulation time multipliers.
+function smoothIconHeading(current,target,seconds){
+  if(!Number.isFinite(current))return target;
+  const delta=((target-current)%360+540)%360-180;
+  return current+delta*(1-Math.exp(-Math.max(0,seconds)/1.6));
+}
 let last=performance.now(),trailAcc=0;
 function frame(now){
   const dtr=Math.min((now-last)/1000,3600);last=now;
@@ -2005,7 +2011,8 @@ function frame(now){
     mel.classList.toggle('is-hold',!!t.hold);mel.classList.toggle('is-stopped',!!t.stopped);
     const cd=ADMIN&&!!t.stopped&&!captureMode;if(rt.canDrag!==cd){rt.canDrag=cd;if(cd)rt.marker.dragging.enable();else rt.marker.dragging.disable();}
     const nn=t.note||'';if(rt.note!==nn){rt.note=nn;rt.noteEl.textContent=nn;}
-    rt.rot.style.transform=`rotate(${t.hdg}deg)`;
+    rt.visualHdg=smoothIconHeading(rt.visualHdg,t.hdg,dtr);
+    rt.rot.style.transform=`rotate(${rt.visualHdg}deg)`;
     rt.line.setLatLngs(courseLL(t));
     if(pushTrail){rt.tp.push([t.lat,t.lon]);if(rt.tp.length>70)rt.tp.shift();rt.trail.setLatLngs(rt.tp);}
   }
