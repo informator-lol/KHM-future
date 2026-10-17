@@ -391,6 +391,7 @@ body.capture-mode #panel{bottom:auto}
 #about-link{position:absolute;z-index:950;right:12px;bottom:58px;display:block;padding:10px 14px;border:1px solid #34455c;border-radius:12px;background:#141e2bf2;color:#e8eaed;text-decoration:none;font-weight:650;box-shadow:0 4px 18px #0005}
 #about-link:hover{background:#243246}#about-link:focus-visible{outline:2px solid #ff8a1f;outline-offset:3px}
 @media(max-width:720px){#about-link{top:140px;bottom:auto;right:8px}}
+.member-editor{width:100%;max-height:230px;overflow-y:auto;display:grid;gap:7px;margin-top:9px}.member-row{display:flex;gap:10px;align-items:center;width:100%;color:#b9c6d6}.member-row select{flex:1;max-width:none;min-width:0}.member-editor[hidden]{display:none!important}.pinfo .ph b{overflow-wrap:anywhere}
 </style>
 </head>
 <body>
@@ -490,7 +491,7 @@ body.capture-mode #panel{bottom:auto}
     </div>
     <div id="mgrp">
       <span class="lbl">Кількість у групі</span>
-      <div class="stepper"><button type="button" id="mcm" aria-label="Менше">−</button><b id="mcn">1</b><button type="button" id="mcp" aria-label="Більше">+</button><div class="gprev" id="gprev"></div></div>
+      <div class="stepper"><button type="button" id="mcm" aria-label="Менше">−</button><b id="mcn">1</b><button type="button" id="mcp" aria-label="Більше">+</button><div class="gprev" id="gprev"></div></div><div id="m-members" class="member-editor"></div><p class="hint">Для змішаної групи задайте тип кожної одиниці. Група має спільний маршрут і задану швидкість.</p>
       <p class="hint">1 — одна ціль. Більше — група: одна мітка на мапі з кількома мініатюрами, летять разом. Потім групу можна розділити просто з її картки.</p>
       <span class="lbl">Швидкість часу цієї цілі</span>
       <div class="seg" id="mmult"></div>
@@ -793,9 +794,23 @@ function formation(n){
   return {pts:out,rows};
 }
 const minisHTML=(type,n,col)=>formation(n).pts.map(p=>`<span class="mini" style="left:calc(50% + ${p[0]}px);top:calc(50% + ${p[1]}px)">${SVG[type](col)}</span>`).join('');
-const iconHTML=(t,col)=>cOf(t)>1?minisHTML(t.type,cOf(t),col):SVG[t.type](col);
+function membersOf(t){return Array.from({length:Math.max(1,Math.min(30,t.count||1))},(_,i)=>TYPES[t.members?.[i]]?t.members[i]:t.type);}
+function normalizeMembers(t){t.members=membersOf(t);}
+function compositionText(t){const members=membersOf(t);return ORDER.filter(k=>members.includes(k)).map(k=>TYPES[k].name+' ×'+members.filter(x=>x===k).length).join(' + ');}
+const iconHTML=(t,col)=>cOf(t)>1?formation(cOf(t)).pts.map((p,i)=>'<span class="mini" style="left:calc(50% + '+p[0]+'px);top:calc(50% + '+p[1]+'px)">'+SVG[membersOf(t)[i]](col)+'</span>').join(''):SVG[membersOf(t)[0]](col);
+function memberEditor(container,t,onChange){
+ const members=membersOf(t),signature=members.join(',');
+ if(container.dataset.signature===signature)return;
+ container.dataset.signature=signature;container.replaceChildren();container.hidden=members.length<2;
+ members.forEach((type,i)=>{
+  const label=document.createElement('label');label.className='member-row';label.textContent=(i+1)+'.';
+  const select=document.createElement('select');select.setAttribute('aria-label','Тип одиниці '+(i+1));
+  for(const k of ORDER){const option=document.createElement('option');option.value=k;option.textContent=TYPES[k].name;select.append(option);}
+  select.value=type;select.addEventListener('change',()=>onChange(i,select.value));label.append(select);container.append(label);
+ });
+}
 const iconSize=t=>cOf(t)>1?Math.max(36,2*(FDX*formation(cOf(t)).rows+8)+6):36;
-const nameOf=t=>TYPES[t.type].name+(cOf(t)>1?' ×'+cOf(t):'');
+const nameOf=t=>new Set(membersOf(t)).size>1?'Змішана група ×'+cOf(t):TYPES[membersOf(t)[0]].name+(cOf(t)>1?' ×'+cOf(t):'');
 
 /* ───────── рівні загрози ───────── */
 const LV = [
@@ -820,7 +835,7 @@ const live=()=>S.targets.filter(t=>!t.done);
 const MULTS=[1,5,10,30,60];
 const mOf=t=>t.mult||S.mult;                 // швидкість часу цієї цілі (якщо не задана — загальна)
 const cOf=t=>Math.max(1,t.count||1);          // скільки одиниць у групі
-const sigOf=x=>JSON.stringify([x.type,x.wps,x.speed,x.b,x.t0,!!x.hold,stOf(x),x.prob||0,!!x.stopped,x.count||1,x.mult||S.mult]);   // коментар не входить: він оновлюється «на місці»
+const sigOf=x=>JSON.stringify([x.type,x.wps,x.speed,x.b,x.t0,!!x.hold,stOf(x),x.prob||0,!!x.stopped,x.count||1,x.mult||S.mult,membersOf(x)]);   // коментар не входить: він оновлюється «на місці»
 
 /* Ціль зберігається як знімок {b, t0}: де вона була в момент t0.
    Поточне місце кожен браузер рахує сам із часу, що минув, тож усі бачать її в одній точці. */
@@ -831,7 +846,7 @@ function catchUp(t,cap=20000){
 }
 let pendingSpeedMigration=false;
 function flushSpeedMigration(){if(ADMIN&&pendingSpeedMigration){pendingSpeedMigration=false;commit();}}
-function hydrate(t){t.count=Math.max(1,Math.min(30,t.count||1));t.mult=t.mult||S.mult;t.hold=!!t.hold;t.stopped=!!t.stopped;t.note=t.note||'';t.lat=t.b.lat;t.lon=t.b.lon;t.hdg=t.b.hdg;t.idx=t.b.idx;t.done=false;t.gone=false;t.free=t.idx>=t.wps.length;t.simDone=0;catchUp(t,400000);
+function hydrate(t){normalizeMembers(t);t.count=Math.max(1,Math.min(30,t.count||1));t.mult=t.mult||S.mult;t.hold=!!t.hold;t.stopped=!!t.stopped;t.note=t.note||'';t.lat=t.b.lat;t.lon=t.b.lon;t.hdg=t.b.hdg;t.idx=t.b.idx;t.done=false;t.gone=false;t.free=t.idx>=t.wps.length;t.simDone=0;catchUp(t,400000);
   const fixed=t.type==='jet'?400:t.type==='drone'?170:null;
   if(fixed!==null&&t.speed!==fixed){
     // Preserve the position reached at the old speed before applying the new one.
@@ -843,7 +858,7 @@ function rebase(t){catchUp(t);t.b={lat:t.lat,lon:t.lon,hdg:t.hdg,idx:t.idx};t.t0
 
 function serialize(){
   return JSON.parse(JSON.stringify({auto:S.auto,mult:S.mult,nextId:S.nextId,raions:S.raions,alarm:S.alarm,alarmMeta:S.alarmMeta,
-    targets:live().map(t=>{const x={id:t.id,type:t.type,wps:t.wps,speed:t.speed,b:t.b,t0:t.t0,hold:!!t.hold,status:stOf(t),prob:t.prob||0,stopped:!!t.stopped,note:t.note||'',count:cOf(t),mult:mOf(t)};t.sig=sigOf(x);return x;})}));
+    targets:live().map(t=>{const x={id:t.id,type:t.type,wps:t.wps,speed:t.speed,b:t.b,t0:t.t0,hold:!!t.hold,status:stOf(t),prob:t.prob||0,stopped:!!t.stopped,note:t.note||'',count:cOf(t),members:membersOf(t),mult:mOf(t)};t.sig=sigOf(x);return x;})}));
 }
 function storeLocal(d){
   try{localStorage.setItem(KEY,JSON.stringify(d));return true;}
@@ -976,7 +991,7 @@ function buildPopup(t){
   <div class="pa ptypes">${ORDER.map(k=>`<button type="button" class="sm" data-a="type" data-k="${k}" title="Змінити тип на: ${TYPES[k].name}">${SVG[k]('#cfd6df')}<span>${TYPES[k].name}</span></button>`).join('')}</div>
   <span class="pa pl">Швидкість часу цієї цілі</span>
   <div class="pa pmult">${MULTS.map(m=>`<button type="button" class="sm" data-a="mult" data-m="${m}">×${m}</button>`).join('')}</div>
-  <span class="pa pl">Група</span>
+  <span class="pa pl">Група · склад</span><div class="pa member-editor"></div>
   <div class="pa pcnt"><button type="button" class="sm" data-a="cminus" title="Прибрати одну одиницю з групи (збито)">− 1</button><button type="button" class="sm" data-a="cplus" title="Додати одну одиницю">+ 1</button><button type="button" class="sm" data-a="split" title="Відділити одну одиницю в окрему ціль зі своїм курсом">↗ Відділити</button></div>
   <div class="pa"><button type="button" class="sm" data-a="stop">⏸ Зупинити</button></div>
   <p class="hint pa" data-h="move" hidden>Перетягніть ціль на мапі, щоб перемістити її, потім натисніть «Продовжити» — курс піде звідти.</p>
@@ -1004,7 +1019,8 @@ function fillPopup(t,el){
   const wp=t.wps[t.idx]||{name:'—',lat:t.lat,lon:t.lon},rem=remainM(t);
   el.style.setProperty('--c',tcol(t));
   set('name',nameOf(t));const summary=el.querySelector('.mobile-summary');if(summary)summary.textContent=ST[lookOf(t)].name+' · '+(t.stopped?'0':t.speed)+' км/год · '+(t.wps[t.idx]?.name||'курс втрачено');
-  set('cnt',cOf(t)+' од.');
+  set('cnt',compositionText(t));
+  memberEditor(el.querySelector('.member-editor'),t,(i,k)=>{if(!ADMIN)return;normalizeMembers(t);t.members[i]=k;if(cOf(t)===1)t.type=k;refreshTarget(t);});
   const cT=el.querySelector('[data-f="cntt"]'),cD=el.querySelector('[data-f="cnt"]');if(cT)cT.hidden=cOf(t)<2;if(cD)cD.hidden=cOf(t)<2;
   el.querySelectorAll('[data-a="mult"]').forEach(b=>b.classList.toggle('on',+b.dataset.m===mOf(t)));
   const cm=el.querySelector('[data-a="cminus"]'),sp=el.querySelector('[data-a="split"]');if(cm)cm.disabled=cOf(t)<2;if(sp)sp.disabled=cOf(t)<2;
@@ -1012,12 +1028,12 @@ function fillPopup(t,el){
   const nTt=el.querySelector('[data-f="notet"]'),nTd=el.querySelector('[data-f="note"]');if(nTt)nTt.hidden=!t.note;if(nTd)nTd.hidden=!t.note;
   const ci=el.querySelector('.cm');if(ci&&document.activeElement!==ci&&ci.value!==(t.note||''))ci.value=t.note||'';
   const sb=el.querySelector('[data-a="stop"]');if(sb){sb.textContent=t.stopped?'▶ Продовжити':'⏸ Зупинити';sb.classList.toggle('go',!!t.stopped);}
-  el.querySelectorAll('[data-a="type"]').forEach(b=>b.classList.toggle('on',b.dataset.k===t.type));
+  el.querySelectorAll('[data-a="type"]').forEach(b=>b.classList.toggle('on',membersOf(t).every(k=>k===b.dataset.k)));
   const mh=el.querySelector('[data-h="move"]');if(mh)mh.hidden=!t.stopped;
   set('spd',t.stopped?'0 км/год · зупинено':t.speed+' км/год');
   set('prob',stOf(t)==='predicted'&&!t.free&&!t.stopped?(t.prob||60)+'% що летить туди':'—');
   set('st',stOf(t)==='untracked'?'Не фіксується · розрахункова позиція':t.stopped?'Зупинено ? · курс збережено':t.free?'Курс втрачено ? · летить прямо':stOf(t)==='predicted'?'Непідтверджений ?':'Підтверджений');
-  const pi=el.querySelector('.pi');if(pi)pi.innerHTML=SVG[t.type](tcol(t));
+  const pi=el.querySelector('.pi');if(pi)pi.innerHTML=shareIconSvg(t,tcol(t));
   set('hdg',String(Math.round(t.hdg)%360).padStart(3,'0')+'° '+compass(t.hdg));
   set('route',routeText(t));
   set('next',t.stopped?'стоїть на місці · далі '+(t.free?'прямо':wp.name):t.free?straightText(t):t.hold?'курсом на '+wp.name+', невідомо звідки':wp.name+' · '+km(distM(t.lat,t.lon,wp.lat,wp.lon))+' км');
@@ -1035,8 +1051,8 @@ function syncLook(t,rt){
   const badge=el.querySelector('.qm');if(badge.dataset.status!==stOf(t)){badge.dataset.status=stOf(t);badge.innerHTML=untracked?RADAR_OFF:'?';badge.title=untracked?'Не фіксується':'';}
   el.title=`${nameOf(t)} #${t.id}`;
   const cn=cOf(t);
-  if(rt.col===col&&rt.pred===pred&&rt.ty===t.type&&rt.cn===cn)return;
-  rt.col=col;rt.pred=pred;rt.ty=t.type;rt.cn=cn;
+  if(rt.col===col&&rt.pred===pred&&rt.ty===t.type&&rt.cn===cn&&rt.members===membersOf(t).join(','))return;
+  rt.col=col;rt.pred=pred;rt.ty=t.type;rt.cn=cn;rt.members=membersOf(t).join(',');
   el.querySelector('.ring').style.setProperty('--c',col);
   const sz=iconSize(t);el.style.width=el.style.height=sz+'px';el.style.marginLeft=el.style.marginTop=(-sz/2)+'px';
   el.classList.toggle('grp',cn>1);
@@ -1080,7 +1096,7 @@ function addRuntime(t){
 }
 const nid=()=>S.targets.length?Math.max(...S.targets.map(t=>t.id))+1:1;   // номер = найбільший з активних + 1; коли цілей немає — знову 1
 const rollSpeed=type=>{const T=TYPES[type];return Math.round(rand(T.speed[0],T.speed[1])/5)*5;};
-function createTarget(type,towns,dirKey,status,prob,note,count,mult,origin){
+function createTarget(type,towns,dirKey,status,prob,note,count,mult,origin,members){
   const T=TYPES[type];
   const wps=towns.map(x=>({name:x[0],lat:x[1],lon:x[2]}));
   let b,hold=false;
@@ -1095,14 +1111,15 @@ function createTarget(type,towns,dirKey,status,prob,note,count,mult,origin){
     b={lat:sp.lat,lon:sp.lon,hdg:bearing(sp.lat,sp.lon,wps[0].lat,wps[0].lon),idx:0};
   }
   const t={id:(S.nextId=nid()+1,nid()),type,wps,speed:rollSpeed(type),count:Math.max(1,Math.min(30,count||1)),mult:mult||S.mult,note:note||'',stopped:false,b,t0:Date.now(),hold,status:status==='untracked'?'untracked':status==='predicted'?'predicted':'confirmed',prob:status==='predicted'?(prob||60):0};
-  hydrate(t);S.targets.push(t);addRuntime(t);renderList();tick();commit();
+  t.members=members;hydrate(t);S.targets.push(t);addRuntime(t);renderList();tick();commit();
   return t;
 }
-function editRoute(t,towns,status,prob,type,note,count,mult,preserveRoute=false){
+function editRoute(t,towns,status,prob,type,note,count,mult,preserveRoute=false,members){
   catchUp(t);
   if(count)t.count=Math.max(1,Math.min(30,count));
   if(mult)t.mult=mult;
   if(type&&TYPES[type]&&type!==t.type){t.type=type;t.speed=rollSpeed(type);}
+  if(members)t.members=members.slice();normalizeMembers(t);
   if(note!==undefined)t.note=note||'';
   if(status){t.status=status==='untracked'?'untracked':status==='predicted'?'predicted':'confirmed';t.prob=t.status==='predicted'?(prob||60):0;}
   if(preserveRoute){
@@ -1131,13 +1148,13 @@ function setMult(t,m){                           // власна швидкіс�
 function setCount(t,n){
   n=Math.max(1,Math.min(30,n));
   if(!ADMIN||t.done||cOf(t)===n)return;
-  t.count=n;refreshTarget(t);
+  t.count=n;normalizeMembers(t);refreshTarget(t);
 }
 function splitOne(t){                             // відділити одну одиницю від групи в окрему ціль і одразу дати їй курс
   if(!ADMIN||t.done||cOf(t)<2)return;
-  rebase(t);t.count=cOf(t)-1;
+  rebase(t);normalizeMembers(t);const splitType=t.members.pop();t.count=t.members.length;
   const p=moveBy(t.lat,t.lon,2500,(t.hdg+90)%360);
-  const n={id:nid(),type:t.type,wps:t.wps.map(w=>({name:w.name,lat:w.lat,lon:w.lon})),speed:t.speed,count:1,mult:mOf(t),note:t.note||'',stopped:!!t.stopped,
+  const n={id:nid(),type:splitType,wps:t.wps.map(w=>({name:w.name,lat:w.lat,lon:w.lon})),speed:t.speed,count:1,mult:mOf(t),note:t.note||'',stopped:!!t.stopped,
     b:{lat:p[0],lon:p[1],hdg:t.hdg,idx:t.idx},t0:Date.now(),hold:!!t.hold,status:stOf(t),prob:t.prob||0};
   hydrate(n);S.targets.push(n);addRuntime(n);
   refreshTarget(t);
@@ -1146,8 +1163,8 @@ function splitOne(t){                             // відділити одну
   openModal('edit',n.id);
 }
 function changeType(t,k){                       // зміна типу «на льоту»: позиція, курс і маршрут лишаються, міняються швидкість і значок
-  if(!ADMIN||t.done||!TYPES[k]||t.type===k)return;
-  rebase(t);t.type=k;t.speed=rollSpeed(k);
+  if(!ADMIN||t.done||!TYPES[k]||membersOf(t).every(type=>type===k))return;
+  rebase(t);t.type=k;t.members=Array(cOf(t)).fill(k);t.speed=rollSpeed(k);
   refreshTarget(t);toast(`#${t.id} → ${TYPES[k].name} · ${t.speed} км/год`);
 }
 function setStopped(t,v){
@@ -1214,7 +1231,7 @@ function updateList(){
     const need=lookOf(t)!=='confirmed',nm=it.querySelector('b'),tag=nm.querySelector('.qtag');   // «?» і колір у списку слідують за станом цілі
     if(need&&!tag)nm.insertAdjacentHTML('beforeend',' <span class="qtag">?</span>');else if(!need&&tag)tag.remove();
     const badge=nm.querySelector('.qtag');if(badge){const u=stOf(t)==='untracked';badge.innerHTML=u?RADAR_OFF:'?';badge.style.background=u?ST.untracked.color:'';badge.style.color=u?'#0d241a':'';badge.title=u?'Не фіксується':'';}
-    const ti=it.querySelector('.ti'),col=tcol(t),tk=col+t.type;if(ti&&ti.dataset.c!==tk){ti.dataset.c=tk;ti.innerHTML=SVG[t.type](col);}
+    const ti=it.querySelector('.ti'),col=tcol(t),tk=col+membersOf(t).join(',');if(ti&&ti.dataset.c!==tk){ti.dataset.c=tk;ti.innerHTML=shareIconSvg(t,col);}
   }
 }
 $('#list').addEventListener('click',e=>{
@@ -1246,13 +1263,14 @@ function renderTypes(){
   for(const k of ORDER){
     const T=TYPES[k],b=document.createElement('button');b.type='button';b.className=k===M.type?'on':'';
     b.innerHTML=`${SVG[k](ST[M.status].color)}<span>${T.name}<small>${T.hint}</small></span>`;
-    b.addEventListener('click',()=>{M.type=k;renderTypes();syncGrp();});box.appendChild(b);
+    b.addEventListener('click',()=>{M.type=k;M.members=Array(M.count).fill(k);renderTypes();syncGrp();});box.appendChild(b);
   }
 }
 function syncGrp(){
+  normalizeMembers(M);memberEditor($('#m-members'),M,(i,k)=>{M.members[i]=k;syncGrp();});
   $('#mcn').textContent=M.count;
   const fm=formation(M.count);
-  $('#gprev').innerHTML=minisHTML(M.type,M.count,ST[M.status].color);
+  $('#gprev').innerHTML=iconHTML(M,ST[M.status].color);
   $('#mcm').disabled=M.count<=1;$('#mcp').disabled=M.count>=30;
   [...$('#mmult').children].forEach(b=>b.classList.toggle('on',+b.dataset.m===M.mult));
 }
@@ -1301,7 +1319,7 @@ function openModal(mode,id){
   if(!ADMIN)return;
   const t=id?live().find(x=>x.id===id):null;
   if(t)M.type=t.type;
-  M.count=t?cOf(t):1;M.mult=t?mOf(t):S.mult;
+  M.count=t?cOf(t):1;M.members=t?membersOf(t):[M.type];M.mult=t?mOf(t):S.mult;
   M.status=t?stOf(t):DEFS.status;M.prob=t&&t.prob?t.prob:60;$('#mprob').value=M.prob;$('#mprobv').textContent=M.prob+'%';
   if(!t)$('#mdir').value=DEFS.dir;
   $('#mtitle').textContent=mode==='edit'&&t?`Змінити курс · ${TYPES[t.type].name} #${t.id}`:'Додати ціль';
@@ -1493,11 +1511,11 @@ $('#mform').addEventListener('submit',e=>{
   if(!preserveRoute&&(!parts.length||parts.some(p=>!p.town)))return;
   const towns=parts.map(p=>p.town).filter((x,i,a)=>!i||x!==a[i-1]);
   if(M.mode==='add'){
-    const t=createTarget(M.type,towns,$('#mdir').value,M.status,M.prob,$('#mnote').value.trim(),M.count,M.mult,M.origin);
+    const t=createTarget(M.type,towns,$('#mdir').value,M.status,M.prob,$('#mnote').value.trim(),M.count,M.mult,M.origin,M.members);
     toast(`${nameOf(t)} #${t.id} → ${towns.map(x=>x[0]).join(' → ')}`);
   } else {
     const t=live().find(x=>x.id===M.id);
-    if(t){editRoute(t,towns,M.status,M.prob,M.type,$('#mnote').value.trim(),M.count,M.mult,preserveRoute);toast(`#${t.id} · ${ST[stOf(t)].name}`);}
+    if(t){editRoute(t,towns,M.status,M.prob,M.type,$('#mnote').value.trim(),M.count,M.mult,preserveRoute,M.members);toast(`#${t.id} · ${ST[stOf(t)].name}`);}
   }
   closeModal();
 });
@@ -1563,7 +1581,7 @@ function applyData(d){
     dropRuntime(t.id);S.targets.splice(S.targets.indexOf(t),1);
   }
   for(const x of incoming.values()){
-    const t={id:x.id,type:x.type,wps:x.wps,speed:x.speed,count:x.count||1,mult:x.mult||S.mult,b:x.b,t0:x.t0,hold:!!x.hold,stopped:!!x.stopped,note:x.note||'',status:stOf(x),prob:x.prob||0,sig:sigOf(x)};
+    const t={id:x.id,type:x.type,wps:x.wps,speed:x.speed,count:x.count||1,members:x.members,mult:x.mult||S.mult,b:x.b,t0:x.t0,hold:!!x.hold,stopped:!!x.stopped,note:x.note||'',status:stOf(x),prob:x.prob||0,sig:sigOf(x)};
     hydrate(t);S.targets.push(t);if(!t.done)addRuntime(t);
   }
   const na={};for(const r of RAIONS){const x=(d.alarm||{})[r.id]||{};na[r.id]={lvl:+x.lvl||0,since:x.since||null};}
@@ -1848,10 +1866,10 @@ function shareTile(z,x,y){
  return promise;
 }
 function shareIconSvg(t,color){
- const svg=SVG[t.type](color);
+ const members=membersOf(t),svg=SVG[members[0]](color);
  if(cOf(t)===1)return svg.replace('<svg ','<svg xmlns="http://www.w3.org/2000/svg" ');
  const points=formation(cOf(t)).pts,size=iconSize(t),half=size/2;
- const icons=points.map(([x,y])=>svg.replace('<svg ', '<svg x="'+(half+x-6.5)+'" y="'+(half+y-6.5)+'" ').replace('width="34" height="34"','width="13" height="13"')).join('');
+ const icons=points.map(([x,y],i)=>SVG[members[i]](color).replace('<svg ', '<svg x="'+(half+x-6.5)+'" y="'+(half+y-6.5)+'" ').replace('width="34" height="34"','width="13" height="13"')).join('');
  return '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 '+size+' '+size+'" width="144" height="144">'+icons+'</svg>';
 }
 async function renderShareCard(t){
@@ -1884,6 +1902,7 @@ async function renderShareCard(t){
  ctx.font='800 20px system-ui';ctx.fillStyle='#f3f7fc';fitText(ctx,nameOf(t),80,56,408);
  ctx.font='500 11px system-ui';ctx.fillStyle='#9daec1';ctx.fillText((cOf(t)>1?'Група #':'Ціль #')+t.id+(cOf(t)>1?' · '+cOf(t)+' од.':''),80,75);
  ctx.font='700 12px system-ui';ctx.fillStyle=color;ctx.textAlign='right';ctx.fillText(ST[lookOf(t)].name+(stOf(t)==='predicted'?' · '+(t.prob||60)+'%':''),488,75);ctx.textAlign='left';
+ if(cOf(t)>1){ctx.font='600 10px system-ui';ctx.fillStyle='#c7d6e8';fitText(ctx,compositionText(t),80,90,408);}
  ctx.font='600 12px system-ui';ctx.fillStyle='#d0deed';fitText(ctx,area.oblast,24,103,464);fitText(ctx,area.district,24,119,464);
  ctx.save();ctx.beginPath();ctx.rect(box.x,box.y,box.w,box.h);ctx.clip();
  // Use the same OSM imagery and dark filter as the live Leaflet map.
@@ -1981,7 +2000,7 @@ async function captureTargets(ids){
  if(!targets.length||targets.some(t=>!t)){toast('Список цілей змінився. Перевірте вибір.');renderCaptureOptions();return;}
  const snapshots=targets.map(target=>{
   const comment=RT.get(target.id)?.pop.querySelector('.cm');if(ADMIN&&comment)setNote(target,comment.value);
-  catchUp(target);return {...target,wps:target.wps.map(w=>({...w}))};
+  catchUp(target);return {...target,members:membersOf(target),wps:target.wps.map(w=>({...w}))};
  });
  const token=++SHARE.token;SHARE.trigger=document.activeElement;SHARE.blob=null;
  $('#share-dialog').hidden=false;document.body.classList.add('dialog-open');$('#share-preview').hidden=true;
