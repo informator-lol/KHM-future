@@ -461,6 +461,7 @@ body.picking #about-link,body.sheet-open #about-link{display:none}
 #map-hud #status{order:2}#map-hud #offline{order:3;max-width:520px;width:auto}#map-hud #clock{order:4;color:#95a9c0;background:#101b29bb;font-size:10px}
 @media(min-width:721px){body.is-admin #map-hud{left:360px}}
 @media(max-width:720px){#map-hud{top:10px;left:10px;right:64px;align-items:flex-start;gap:6px}#map-hud #badge{font-size:9px;text-align:left}#map-hud #offline{font-size:11px;padding:8px 10px}#map-hud #status{justify-content:flex-start}#map-hud #clock{padding:5px 8px}}
+#sugg{display:block;max-height:330px;overflow-y:auto;scrollbar-width:thin}.search-group{border:1px solid #34475e;border-radius:12px;padding:10px;margin:8px 0;background:#101b29}.search-group>strong{display:block;font-size:12px;margin:0 0 8px;color:#bacce2}#sugg .place-option{width:100%;text-align:left;border-radius:9px;padding:10px 12px;margin-bottom:6px;display:block}#sugg .place-option b{display:block;font-size:13px}#sugg .place-option small{display:block;color:#a8bbd1;font-size:11px;line-height:1.5;margin-top:4px}#chips button.chip{white-space:normal;text-align:left;line-height:1.5;max-width:100%;cursor:pointer}#chips button.chip:hover{border-color:#6ee7a0}
 </style>
 <link rel="icon" type="image/png" href="./favicon.png?v=1">
 <link rel="apple-touch-icon" href="./favicon.png?v=1">
@@ -583,7 +584,7 @@ body.picking #about-link,body.sheet-open #about-link{display:none}
     <div id="chips"></div>
     <div id="sugg"></div>
     <button type="button" class="ghost" id="mpeek" disabled>📍 Показати на мапі, куди летітиме</button>
-    <p class="hint">Одне місце — ціль летить прямо туди. Кілька — по черзі, розділяйте «→», комою або « - ». Міста, селища й села шукаються по мапі, помилки в назвах виправляються самі. Якщо назв кілька — виберіть свою з підказок.</p>
+    <p class="hint">Одне місце — ціль летить прямо туди. Кілька — по черзі, розділяйте «→», комою або « - ». Міста, селища й села вибирайте з підказок — автоматичної підстановки немає. Для однакових назв перевіряйте область і район. Натисніть зелену мітку з ✎, щоб змінити вибір.</p>
     <label class="lbl" for="mnote">Коментар <span style="text-transform:none;letter-spacing:0;font-weight:500">(необов'язково)</span></label>
     <input type="text" id="mnote" maxlength="120" placeholder="Напр.: стоїть на Деражні" spellcheck="false">
     <div id="nsugg"><button type="button" data-t="Локаційно втрачений">Локаційно втрачений</button></div>
@@ -742,8 +743,8 @@ function findTown(raw){const r=findTownScored(raw);return r?r.t:null;}
 
 /* ───────── пошук сіл по мапі (OpenStreetMap) ─────────
    Мій список містить лише міста й райцентри. Усе інше (села, селища) шукаю в базі мапи
-   в межах області: Photon (терпить помилки), а якщо він мовчить — Nominatim. */
-const PICK=new Map();   // norm(назва) → [назва,lat,lon,3,[]] — те, що адмін явно вибрав у підказках
+   через Photon; місцевий довідник доступний і без мережі. */
+const PICK=new Map();   // Ключ вибраного варіанта включає координати; однойменні місця не перезаписуються.
 const GC=new Map();     // norm(запит) → {state:'pending'|'done'|'error', list:[{name,lat,lon,sub}]}
 const BB=GEO.bounds;    // [minLon,minLat,maxLon,maxLat]
 function nearOblast(lat,lon){
@@ -760,40 +761,35 @@ const CYR=/[А-Яа-яІіЇїЄєҐґ]/;
 const OB_C=[49.42,26.99];     // ближчі до Хмельницького збіги — вище (сіл з однаковою назвою в Україні сотні)
 const shortSub=(a,b)=>[a,b].filter(Boolean).map(s=>String(s).replace(/ область$/,' обл.')).join(' · ');
 async function fetchCandidates(q){
-  const bb=[BB[0],BB[1],BB[2],BB[3]];
-  const nom=async()=>{
-    const j=await getJSON(`https://nominatim.openstreetmap.org/search?format=jsonv2&limit=12&accept-language=uk&countrycodes=ua&addressdetails=1&namedetails=1&viewbox=${bb[0]},${bb[3]},${bb[2]},${bb[1]}&q=${encodeURIComponent(q)}`);
-    return (j||[]).filter(x=>{const c=x.category||x.class,ty=x.addresstype||x.type;return c==='place'||(c==='boundary'&&/^(city|town|village|hamlet|municipality)$/.test(ty));}).map(x=>{
-      const nd=x.namedetails||{},a=x.address||{},p=String(x.display_name||'').split(',')[0].trim();
-      return {name:nd['name:uk']||nd.name||x.name||p,lat:+x.lat,lon:+x.lon,sub:shortSub(a.county||a.municipality||a.state_district,a.state)};});
-  };
-  const pho=async()=>{
-    const j=await getJSON(`https://photon.komoot.io/api/?q=${encodeURIComponent(q)}&limit=12&osm_tag=place&lat=${OB_C[0]}&lon=${OB_C[1]}`);
-    return (j.features||[]).filter(f=>f.geometry&&f.properties&&f.properties.name&&(!f.properties.countrycode||f.properties.countrycode==='UA')).map(f=>({
-      name:f.properties.name,lat:f.geometry.coordinates[1],lon:f.geometry.coordinates[0],
-      sub:shortSub(f.properties.county||f.properties.district,f.properties.state)}));
-  };
-  const rs=await Promise.allSettled([nom(),pho()]);
-  if(rs.every(r=>r.status==='rejected'))throw rs[0].reason;
-  const partial=rs.some(r=>r.status==='rejected');
-  const all=rs.filter(r=>r.status==='fulfilled').flatMap(r=>r.value)
-    .filter(c=>isFinite(c.lat)&&isFinite(c.lon)&&c.name&&CYR.test(c.name));       // латиниця («Nova Ushytsia») не потрібна
-  const out=[];
-  for(const c of all){                                                        // той самий пункт від двох сервісів — один раз
-    if(out.some(o=>norm(o.name)===norm(c.name)&&distM(o.lat,o.lon,c.lat,c.lon)<8000)){continue;}
-    out.push(c);
-  }
-  out.sort((a,b)=>distM(a.lat,a.lon,OB_C[0],OB_C[1])-distM(b.lat,b.lon,OB_C[0],OB_C[1]));
-  if(partial&&!out.length)throw new Error('partial');
-  return out;
+ const j=await getJSON('https://photon.komoot.io/api/?q='+encodeURIComponent(q)+'&limit=20&osm_tag=place&lat='+OB_C[0]+'&lon='+OB_C[1]);
+ const out=[];
+ for(const f of j.features||[]){
+  const p=f.properties||{},coords=f.geometry?.coordinates;
+  if(!coords||!p.name||String(p.countrycode||'').toUpperCase()!=='UA')continue;
+  const c={name:p.name,lat:+coords[1],lon:+coords[0],sub:shortSub(p.county||p.district,p.state)};
+  if(!Number.isFinite(c.lat)||!Number.isFinite(c.lon))continue;
+  if(out.some(o=>norm(o.name)===norm(c.name)&&distM(o.lat,o.lon,c.lat,c.lon)<250))continue;
+  out.push(c);
+ }
+ const score=c=>{const value=scoreKey(norm(c.name),stripKind(q));return Number.isFinite(value)?value:10;};
+ return out.sort((a,b)=>score(a)-score(b)||distM(a.lat,a.lon,...OB_C)-distM(b.lat,b.lon,...OB_C));
 }
 function geoLookup(raw,q){
-  GC.set(q,{state:'pending',list:[]});
-  const name=raw.trim().replace(/^(с\.|с|село|смт|селище)\s+/i,'');
-  const run=n=>fetchCandidates(name).then(list=>{GC.set(q,{state:'done',list});},()=>{
-    if(n>0)return new Promise(r=>setTimeout(r,1200)).then(()=>run(n-1));   // збій мережі чи ліміт сервісу — пробуємо ще
-    GC.set(q,{state:'error',list:[]});});
-  run(2).then(()=>{if(!$('#modal').hidden)refreshModal();if(peeking)showPeek(true);});
+ if(GC.get(q)?.state==='pending')return;
+ GC.set(q,{state:'pending',list:[]});
+ const name=raw.trim().replace(/^(с\.|с|село|смт|селище)\s+/i,'');
+ fetchCandidates(name).then(list=>GC.set(q,{state:'done',list}),()=>GC.set(q,{state:'error',list:[]}))
+  .then(()=>{if(!$('#modal').hidden)refreshModal(false);});
+}
+function choiceToken(t){return t[0]+' ⟦'+Number(t[1]).toFixed(5)+' '+Number(t[2]).toFixed(5)+'⟧';}
+function rememberChoice(t){const token=choiceToken(t);PICK.set(stripKind(token),t);return token;}
+function candidateList(raw){
+ const q=stripKind(raw),remote=GC.get(q)?.list||[],out=remote.map(c=>[c.name,c.lat,c.lon,3,[],c.sub]);
+ for(const t of suggest(raw)){
+  if(out.some(o=>norm(o[0])===norm(t[0])&&distM(o[1],o[2],t[1],t[2])<1500))continue;
+  out.push(t);
+ }
+ return out;
 }
 function geoBest(q,list){
   const lim=q.length<=4?0:q.length<=6?1:q.length<=9?2:3;
@@ -805,22 +801,17 @@ function geoBest(q,list){
   return best;
 }
 function resolveName(raw,kick){
-  const q=stripKind(raw);if(!q)return null;
-  if(PICK.has(q))return {t:PICK.get(q)};
-  const loc=findTownScored(raw);
-  if(loc&&loc.d<1)return {t:loc.t};                       // точний збіг із моїм списком
-  const g=GC.get(q);
-  if(g&&g.state==='done'){const b=geoBest(q,g.list);if(b&&(!loc||b.d<loc.d))return {t:b.tuple};}
-  if(kick&&q.length>=3&&(!g||g.state==='error'))geoLookup(raw,q);
-  if(loc)return {t:loc.t};                                // схожий збіг (помилка в написанні)
-  if(q.length<3)return null;
-  return (!g||g.state==='pending')?{pending:true}:null;
+ const q=stripKind(raw);if(!q)return null;
+ if(PICK.has(q))return {t:PICK.get(q)};
+ const g=GC.get(q);
+ if(kick&&q.length>=3&&!g)geoLookup(raw,q);
+ return {pending:GC.get(q)?.state==='pending',needsChoice:true};
 }
 function suggest(raw){
-  const q=norm(raw);if(q.length<2)return [];
+  const q=stripKind(raw);if(q.length<2)return [];
   const out=[];
   for(const {t,keys} of TKEYS){let b=Infinity;for(const k of keys){const d=(k.startsWith(q)?.3:k.includes(q)?.6:scoreKey(k,q));if(d<b)b=d;}if(b<Infinity)out.push([b,t]);}
-  return out.sort((a,b)=>a[0]-b[0]).slice(0,6).map(x=>x[1]);
+  return out.sort((a,b)=>a[0]-b[0]).slice(0,12).map(x=>x[1]);
 }
 const exactKey = raw => { const q=norm(raw); return TKEYS.some(({keys})=>keys.includes(q)); };
 const SEP = /\s*(?:→|➔|⟶|->|=>|>|,|;|\n|\/|\|)\s*|\s+[-–—]\s+|\s*[–—]\s*/;
@@ -831,7 +822,6 @@ function parseRoute(text,kick){
   for(const p of parts){
     const r=resolveName(p,kick);
     if(r&&r.t){out.push({q:p,town:r.t});continue;}
-    if(/\s/.test(p)){const ws=p.split(/\s+/),rs=ws.map(w=>resolveName(w,false));if(rs.every(x=>x&&x.t)){ws.forEach((w,i)=>out.push({q:w,town:rs[i].t}));continue;}}
     out.push({q:p,town:null,pending:!!(r&&r.pending)});
   }
   return out;
@@ -1171,7 +1161,7 @@ const nid=()=>S.targets.length?Math.max(...S.targets.map(t=>t.id))+1:1;   // н�
 const rollSpeed=type=>{const T=TYPES[type];return Math.round(rand(T.speed[0],T.speed[1])/5)*5;};
 function createTarget(type,towns,dirKey,status,prob,note,count,mult,origin,members){
   const T=TYPES[type];
-  const wps=towns.map(x=>({name:x[0],lat:x[1],lon:x[2]}));
+  const wps=towns.map(x=>({name:x[0],lat:x[1],lon:x[2],sub:x[5]||''}));
   let b,hold=false;
   if(origin){
     b={lat:origin.lat,lon:origin.lng,hdg:bearing(origin.lat,origin.lng,wps[0].lat,wps[0].lon),idx:0};
@@ -1200,7 +1190,7 @@ function editRoute(t,towns,status,prob,type,note,count,mult,preserveRoute=false,
     refreshTarget(t);return;
   }
   const was=t.hold;
-  t.wps=towns.map(x=>({name:x[0],lat:x[1],lon:x[2]}));
+  t.wps=towns.map(x=>({name:x[0],lat:x[1],lon:x[2],sub:x[5]||''}));
   t.hold=!!was&&towns.length===1&&distM(t.lat,t.lon,towns[0][1],towns[0][2])<1500;   // стоїть, поки курс не змінять на інше місце
   t.b={lat:t.lat,lon:t.lon,hdg:t.hdg,idx:0};t.t0=Date.now();t.simDone=0;t.idx=0;t.done=false;t.free=false;t.gone=false;
   const rt=RT.get(t.id);if(rt){syncLook(t,rt);fillPopup(t,rt.pop);}
@@ -1227,7 +1217,7 @@ function splitOne(t){                             // відділити одну
   if(!ADMIN||t.done||cOf(t)<2)return;
   rebase(t);normalizeMembers(t);const splitType=t.members.pop();t.count=t.members.length;
   const p=moveBy(t.lat,t.lon,2500,(t.hdg+90)%360);
-  const n={id:nid(),type:splitType,wps:t.wps.map(w=>({name:w.name,lat:w.lat,lon:w.lon})),speed:t.speed,count:1,mult:mOf(t),note:t.note||'',stopped:!!t.stopped,
+  const n={id:nid(),type:splitType,wps:t.wps.map(w=>({name:w.name,lat:w.lat,lon:w.lon,sub:w.sub||''})),speed:t.speed,count:1,mult:mOf(t),note:t.note||'',stopped:!!t.stopped,
     b:{lat:p[0],lon:p[1],hdg:t.hdg,idx:t.idx},t0:Date.now(),hold:!!t.hold,status:stOf(t),prob:t.prob||0};
   hydrate(n);S.targets.push(n);addRuntime(n);
   refreshTarget(t);
@@ -1352,43 +1342,40 @@ $('#mmult').addEventListener('click',e=>{const b=e.target.closest('button');if(!
 $('#mcm').addEventListener('click',()=>{M.count=Math.max(1,M.count-1);syncGrp();});
 $('#mcp').addEventListener('click',()=>{M.count=Math.min(30,M.count+1);syncGrp();});
 function refreshModal(kick){
-  const text=$('#mroute').value,parts=parseRoute(text,kick);
-  const chips=$('#chips');chips.innerHTML='';
-  parts.forEach((p,i)=>{
-    if(i){const a=document.createElement('span');a.className='chip arrow';a.textContent='→';chips.appendChild(a);}
-    const c=document.createElement('span');
-    c.className='chip'+(p.town?'':p.pending?' wait':' bad');
-    c.textContent=p.town?p.town[0]:p.pending?`… ${p.q}`:`? ${p.q}`;chips.appendChild(c);
-  });
-  const sg=$('#sugg');sg.innerHTML='';
-  const lt=lastToken(text).trim(),q=stripKind(lt);
-  const pick=(name,tuple)=>{
-    if(tuple)PICK.set(stripKind(name),tuple);
-    const v=$('#mroute').value;const cut=v.length-lastToken(v).length;
-    $('#mroute').value=v.slice(0,cut)+name;refreshModal(true);$('#mroute').focus();
-  };
-  const shown=new Set();
-  const add=(label,name,tuple)=>{
-    const key=label;if(shown.has(key))return;shown.add(key);
-    const b=document.createElement('button');b.type='button';b.textContent=label;
-    b.addEventListener('click',()=>pick(name,tuple));sg.appendChild(b);
-  };
-  const g=GC.get(q);
-  if(lt&&!PICK.has(q)){
-    if(!exactKey(lt))for(const t of suggest(lt))add(t[0],t[0],null);
-    if(g&&g.state==='done')for(const c of g.list.slice(0,8))add(c.sub?`${c.name} · ${c.sub}`:c.name,c.name,[c.name,c.lat,c.lon,3,[]]);
+ const text=$('#mroute').value,parts=parseRoute(text,false);
+ // Only search the last unresolved fragment after typing stops.
+ const last=parts.at(-1);if(kick&&last&&!last.town)resolveName(last.q,true);
+ const chips=$('#chips'),sg=$('#sugg');chips.replaceChildren();sg.replaceChildren();
+ const replacePart=(index,value)=>{const values=parts.map(p=>p.q);values[index]=value;$('#mroute').value=values.join(' → ');refreshModal(false);};
+ parts.forEach((p,i)=>{
+  if(i){const arrow=document.createElement('span');arrow.className='chip arrow';arrow.textContent='→';chips.append(arrow);}
+  const chip=document.createElement(p.town?'button':'span');chip.className='chip'+(p.town?'':GC.get(stripKind(p.q))?.state==='pending'?' wait':' bad');
+  chip.textContent=p.town?p.town[0]+(p.town[5]?' · '+p.town[5]:'')+' ✎':'Виберіть: '+p.q;
+  if(p.town){chip.type='button';chip.title='Змінити населений пункт';chip.addEventListener('click',()=>replacePart(i,p.town[0]));}
+  chips.append(chip);
+  if(p.town)return;
+  const q=stripKind(p.q),g=GC.get(q),group=document.createElement('div');group.className='search-group';
+  const title=document.createElement('strong');title.textContent='Оберіть населений пункт: '+p.q;group.append(title);
+  const choices=candidateList(p.q);
+  for(const t of choices){
+   const b=document.createElement('button');b.type='button';b.className='place-option';
+   const name=document.createElement('b');name.textContent=t[0];
+   const sub=document.createElement('small');sub.textContent=(t[5]||'Місцевий довідник')+' · '+Number(t[1]).toFixed(4)+', '+Number(t[2]).toFixed(4);
+   b.append(name,sub);b.addEventListener('click',()=>replacePart(i,rememberChoice(t)));group.append(b);
   }
-  const st=document.createElement('span');st.className='hint';st.style.margin='0';
-  if(g&&g.state==='pending')st.textContent='Шукаю по мапі…';
-  else if(g&&g.state==='error')st.textContent='Пошук по мапі недоступний — спробуйте ще раз або виберіть із підказок.';
-  if(st.textContent)sg.appendChild(st);
-  $('#msave').disabled=!(M.mode==='edit'&&$('#mroute').value===M.routeValue)&&(!parts.length||parts.some(p=>!p.town));
-  $('#mpeek').disabled=!parts.some(p=>p.town);
+  const status=document.createElement('p');status.className='hint';status.setAttribute('role','status');
+  status.textContent=g?.state==='pending'?'Шукаю інші варіанти…':g?.state==='error'?'Онлайн-пошук недоступний. Можна повторити пошук або вибрати точку на карті.':g?.state==='done'&&!choices.length?'Нічого не знайдено. Уточніть назву або додайте точку на карті.':'Перевірте область, район і координати перед вибором.';
+  group.append(status);
+  if(q.length>=3&&(!g||g.state==='error')){const search=document.createElement('button');search.type='button';search.textContent=g?'Повторити пошук':'Шукати по Україні';search.addEventListener('click',()=>{geoLookup(p.q,q);refreshModal(false);});group.append(search);}
+  sg.append(group);
+ });
+ $('#msave').disabled=!(M.mode==='edit'&&text===M.routeValue)&&(!parts.length||parts.some(p=>!p.town));
+ $('#mpeek').disabled=!parts.some(p=>p.town);
 }
 let kickT;
-function refreshModalSoon(){refreshModal(false);clearTimeout(kickT);kickT=setTimeout(()=>refreshModal(true),450);}
+function refreshModalSoon(){refreshModal(false);clearTimeout(kickT);kickT=setTimeout(()=>refreshModal(true),700);}
 function openModal(mode,id){
-  closeTargetSheet();M.mode=mode;M.id=id||null;M.origin=null;syncOrigin();
+  clearTimeout(kickT);PICK.clear();closeTargetSheet();M.mode=mode;M.id=id||null;M.origin=null;syncOrigin();
   if(!ADMIN)return;
   const t=id?live().find(x=>x.id===id):null;
   if(t)M.type=t.type;
@@ -1399,8 +1386,7 @@ function openModal(mode,id){
   $('#teleport').hidden=mode!=='edit'||!t;$('#mtypew').hidden=false;$('#mdirw').hidden=mode==='edit';
   $('#mnote').value=t?t.note||'':'';
   $('#msave').textContent=mode==='edit'?'Зберегти курс':'Додати ціль';
-  if(t)t.wps.forEach(w=>PICK.set(stripKind(w.name),[w.name,w.lat,w.lon,3,[]]));   // точки вже відомі — не шукати заново
-  $('#mroute').value=t?t.wps.slice(t.idx).map(w=>w.name).join(' → '):'';
+  $('#mroute').value=t?t.wps.slice(t.idx).map(w=>rememberChoice([w.name,w.lat,w.lon,3,[],w.sub||''])).join(' → '):'';
   M.routeValue=$('#mroute').value;
   syncSt();refreshModal(false);
   $('#modal').hidden=false;setTimeout(()=>{const i=$('#mroute');i.focus();i.setSelectionRange(i.value.length,i.value.length);},30);
@@ -1408,7 +1394,7 @@ function openModal(mode,id){
 function syncSt(){$('#mprobw').hidden=M.status!=='predicted';[...$('#mst').children].forEach(b=>b.classList.toggle('on',b.dataset.s===M.status));renderTypes();syncGrp();}
 $('#mprob').addEventListener('input',()=>{M.prob=+$('#mprob').value;$('#mprobv').textContent=M.prob+'%';});
 $('#mst').addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;M.status=b.dataset.s;syncSt();});
-function closeModal(){if(pickMode)finishPick(false);exitPeek();$('#modal').hidden=true;$('#add').focus();}
+function closeModal(){clearTimeout(kickT);if(pickMode)finishPick(false);exitPeek();$('#modal').hidden=true;$('#add').focus();}
 
 /* ───────── перегляд курсу на мапі ─────────
    Кнопка ховає форму й показує на мапі хрестики на кожній точці курсу, лінію маршруту
@@ -1534,7 +1520,7 @@ function showPeek(noFit){
   for(const p of parts){
     if(!p.town)continue;
     const q=stripKind(p.q),g=GC.get(q);
-    if(!g){if(q.length>=3)geoLookup(p.q,q);continue;}
+    if(!g)continue;
     if(g.state!=='done')continue;
     const lim=q.length<=4?0:q.length<=6?1:q.length<=9?2:3;
     let n=0;
