@@ -396,12 +396,13 @@ body.dialog-open #panel,body.dialog-open #target-sheet{pointer-events:none}
 <section id="target-sheet" hidden aria-label="Керування ціллю"><header><b>Керування ціллю</b><button id="sheet-close" class="ib" aria-label="Закрити картку">✕</button></header><div id="sheet-content"></div></section>
 <div id="share-dialog" class="dialog-layer" hidden role="dialog" aria-modal="true" aria-labelledby="share-title">
  <div class="dialog-card"><header><h2 id="share-title">Картка для публікації</h2><button id="share-close" class="ib" aria-label="Закрити попередній перегляд">✕</button></header>
- <p class="hint">PNG · 512 × 512 · знімок стану на момент натискання</p>
+ <p class="hint">PNG HD · 1536 × 1536 · знімок стану на момент натискання</p>
  <img id="share-preview" alt="Попередній перегляд інформаційної картки" hidden>
  <p id="share-message" role="status">Створюю картку…</p>
  <div class="actions"><button class="ghost" id="share-save" disabled>Завантажити PNG</button><button class="primary" id="share-copy" disabled>Копіювати зображення</button></div>
  </div>
 </div>
+
 
 <div id="map"></div>
 <div id="badge"><i></i>Неофіційна карта · за відкритими джерелами · можливі неточності</div>
@@ -1807,8 +1808,11 @@ function shareTile(z,x,y){
  return promise;
 }
 async function renderShareCard(t){
- const canvas=document.createElement('canvas');canvas.width=canvas.height=512;
+ const canvas=document.createElement('canvas');canvas.width=canvas.height=1536;
  const ctx=canvas.getContext('2d'),color=tcol(t),now=new Date(),area=locationOf(t.lat,t.lon),near=nearestPlace(t);
+ ctx.scale(3,3);ctx.imageSmoothingEnabled=true;ctx.imageSmoothingQuality='high';
+ const iconSvg=SVG[t.type](color).replace('<svg ','<svg xmlns="http://www.w3.org/2000/svg" ').replace('width="34" height="34"','width="144" height="144"');
+ const targetImage=new Image();await new Promise((resolve,reject)=>{targetImage.onload=resolve;targetImage.onerror=reject;targetImage.src='data:image/svg+xml;charset=utf-8,'+encodeURIComponent(iconSvg);});
  const next=t.wps[t.idx],box={x:24,y:116,w:464,h:166};
  const end=next&&distM(t.lat,t.lon,next.lat,next.lon)<150000?[next.lat,next.lon]:null;
  let zoom=11;
@@ -1819,26 +1823,35 @@ async function renderShareCard(t){
  const left=center.x-box.w/2,top=center.y-box.h/2;
  const project=(lat,lon)=>{const p=map.project([lat,lon],zoom);return [box.x+p.x-left,box.y+p.y-top];};
  const tiles=[];
- for(let x=Math.floor(left/256);x<=Math.floor((left+box.w-1)/256);x++)for(let y=Math.floor(top/256);y<=Math.floor((top+box.h-1)/256);y++){
-  if(y<0||y>=2**zoom)continue;
-  tiles.push(shareTile(zoom,x,y).then(img=>({img,x,y})));
+ const tileScale=2,tileZoom=zoom+1,tileSize=256/tileScale;
+ for(let x=Math.floor(left/tileSize);x<=Math.floor((left+box.w-1)/tileSize);x++)for(let y=Math.floor(top/tileSize);y<=Math.floor((top+box.h-1)/tileSize);y++){
+  if(y<0||y>=2**tileZoom)continue;
+  tiles.push(shareTile(tileZoom,x,y).then(img=>({img,x,y})));
  }
  const loaded=await Promise.all(tiles);
  ctx.fillStyle='#0c1420';ctx.fillRect(0,0,512,512);ctx.fillStyle=color;ctx.fillRect(0,0,512,4);
  ctx.font='700 10px system-ui';ctx.fillStyle='#99aec5';ctx.fillText('ХМЕЛЬНИЧЧИНА · МОНІТОРИНГ',24,25);
  const time=now.toLocaleString('uk-UA',{timeZone:'Europe/Kyiv',day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'});
- ctx.textAlign='right';ctx.fillText(time+' · Київ',488,25);ctx.textAlign='left';
- ctx.font='800 22px system-ui';ctx.fillStyle='#f3f7fc';fitText(ctx,nameOf(t)+' · #'+t.id,24,51,464);
- ctx.font='700 13px system-ui';ctx.fillStyle=color;ctx.fillText(ST[lookOf(t)].name+(stOf(t)==='predicted'?' · '+(t.prob||60)+'%':''),24,72);
+ ctx.textAlign='right';ctx.fillText(time,488,25);ctx.textAlign='left';
+ ctx.save();ctx.shadowColor=color;ctx.shadowBlur=16;ctx.fillStyle='#111d29';ctx.strokeStyle=color+'b0';ctx.lineWidth=.8;ctx.beginPath();ctx.roundRect(24,37,44,44,13);ctx.fill();ctx.stroke();ctx.shadowBlur=7;ctx.drawImage(targetImage,31,44,30,30);ctx.restore();
+ ctx.font='800 20px system-ui';ctx.fillStyle='#f3f7fc';fitText(ctx,nameOf(t),80,56,408);
+ ctx.font='500 11px system-ui';ctx.fillStyle='#9daec1';ctx.fillText('Ціль #'+t.id,80,75);
+ ctx.font='700 12px system-ui';ctx.fillStyle=color;ctx.textAlign='right';ctx.fillText(ST[lookOf(t)].name+(stOf(t)==='predicted'?' · '+(t.prob||60)+'%':''),488,75);ctx.textAlign='left';
  ctx.font='600 12px system-ui';ctx.fillStyle='#d0deed';fitText(ctx,area.oblast,24,91,464);fitText(ctx,area.district,24,107,464);
  ctx.save();ctx.beginPath();ctx.rect(box.x,box.y,box.w,box.h);ctx.clip();
- for(const {img,x,y} of loaded)ctx.drawImage(img,box.x+x*256-left,box.y+y*256-top,256,256);
+ // Use the same OSM imagery and dark filter as the live Leaflet map.
+ const mapFilter=getComputedStyle(map.getPane('tilePane')).filter;
+ ctx.filter=mapFilter==='none'?'invert(1) hue-rotate(180deg) brightness(.82) contrast(.92) saturate(.55)':mapFilter;
+ for(const {img,x,y} of loaded)ctx.drawImage(img,box.x+x*tileSize-left,box.y+y*tileSize-top,tileSize,tileSize);
+ ctx.filter='none';
  // Geographic tiles show towns and roads both inside and outside the focus oblast.
  ctx.beginPath();courseLL(t).forEach((p,i)=>{const q=project(...p);i?ctx.lineTo(...q):ctx.moveTo(...q);});ctx.strokeStyle='#ffffff';ctx.lineWidth=5;ctx.stroke();ctx.strokeStyle=color;ctx.lineWidth=2.5;ctx.setLineDash([6,5]);ctx.stroke();ctx.setLineDash([]);
- if(end){const q=project(...end);ctx.fillStyle='#142333';ctx.strokeStyle='#fff';ctx.lineWidth=2;ctx.beginPath();ctx.arc(...q,4,0,Math.PI*2);ctx.fill();ctx.stroke();}
+ if(end){const q=project(...end);ctx.fillStyle='#142333';ctx.strokeStyle='#fff';ctx.lineWidth=2;ctx.beginPath();ctx.arc(...q,4,0,Math.PI*2);ctx.fill();ctx.stroke();
+  ctx.font='700 12px system-ui';const labelWidth=Math.min(220,ctx.measureText(next.name).width+14),labelX=Math.min(box.x+box.w-labelWidth-4,Math.max(box.x+4,q[0]+8)),labelY=Math.max(box.y+4,q[1]-26);
+  ctx.fillStyle='#101c2aee';ctx.fillRect(labelX,labelY,labelWidth,20);ctx.fillStyle='#e8f1fc';fitText(ctx,next.name,labelX+7,labelY+14,labelWidth-14);
+ }
  const [tx,ty]=project(t.lat,t.lon);ctx.beginPath();ctx.arc(tx,ty,20,0,Math.PI*2);ctx.fillStyle='#0c1420ed';ctx.fill();ctx.strokeStyle=color;ctx.lineWidth=2;ctx.stroke();
- const svg=SVG[t.type](color).replace('<svg ','<svg xmlns="http://www.w3.org/2000/svg" '),url=URL.createObjectURL(new Blob([svg],{type:'image/svg+xml'}));
- try{const img=new Image();await new Promise((resolve,reject)=>{img.onload=resolve;img.onerror=reject;img.src=url;});ctx.save();ctx.translate(tx,ty);ctx.rotate(t.hdg*Math.PI/180);ctx.drawImage(img,-16,-16,32,32);ctx.restore();}finally{URL.revokeObjectURL(url);}
+ ctx.save();ctx.translate(tx,ty);ctx.rotate(t.hdg*Math.PI/180);ctx.drawImage(targetImage,-16,-16,32,32);ctx.restore();
  ctx.fillStyle='#0c1420d9';ctx.fillRect(355,box.y+box.h-18,133,18);ctx.fillStyle='#e9eef5';ctx.font='9px system-ui';ctx.textAlign='right';ctx.fillText('© OpenStreetMap contributors',482,box.y+box.h-6);ctx.textAlign='left';
  ctx.restore();
  const eta=t.stopped?'Зупинено':t.hold?'Невідомо':t.free?'Курс втрачено':fmtEta(remainM(t)/(t.speed/3.6*mOf(t)));
@@ -1849,8 +1862,10 @@ async function renderShareCard(t){
  ctx.font='12px system-ui';ctx.fillStyle='#b7c9dc';
  fitText(ctx,'Наступна точка: '+(next?next.name+' · '+km(distM(t.lat,t.lon,next.lat,next.lon))+' км':'Не задано'),24,380,464);
  fitText(ctx,'Поблизу: '+near.name+' · '+km(near.distance)+' км'+(!t.free?'  |  Залишилось: '+km(remainM(t))+' км':''),24,398,464);
- ctx.fillStyle='#8fa5bc';ctx.font='700 9px system-ui';ctx.fillText('КОМЕНТАР',24,415);
- ctx.fillStyle='#eef4fb';ctx.font='13px system-ui';wrapText(ctx,t.note?.trim()||'Без коментаря',24,432,464,3,15);
+ if(t.note?.trim()){
+  ctx.fillStyle='#8fa5bc';ctx.font='700 9px system-ui';ctx.fillText('КОМЕНТАР',24,415);
+  ctx.fillStyle='#eef4fb';ctx.font='13px system-ui';wrapText(ctx,t.note.trim(),24,432,464,3,15);
+ }
  ctx.strokeStyle='#293b4f';ctx.beginPath();ctx.moveTo(24,473);ctx.lineTo(488,473);ctx.stroke();
  ctx.fillStyle='#a8b9cc';ctx.font='10px system-ui';ctx.fillText('Курс за внесеними даними.',24,488);ctx.fillText('Початкова та поточна позиції можуть бути неточними.',24,502);
  return new Promise((resolve,reject)=>canvas.toBlob(b=>b?resolve(b):reject(new Error('Не вдалося створити PNG')),'image/png'));
@@ -1867,7 +1882,7 @@ async function captureTarget(id){
  catchUp(target);const t={...target,wps:target.wps.map(w=>({...w}))};
  const token=++SHARE.token;SHARE.trigger=document.activeElement;SHARE.blob=null;
  $('#share-dialog').hidden=false;document.body.classList.add('dialog-open');$('#share-preview').hidden=true;
- $('#share-message').textContent='Створюю картку 512 × 512…';$('#share-copy').disabled=$('#share-save').disabled=true;$('#share-close').focus();
+ $('#share-message').textContent='Створюю HD-картку 1536 × 1536…';$('#share-copy').disabled=$('#share-save').disabled=true;$('#share-close').focus();
  const blobPromise=renderShareCard(t);
  // Start clipboard access during the click to retain activation on mobile Safari.
  const copied=clipboardImage(blobPromise).then(()=>true,()=>false);
@@ -1880,7 +1895,7 @@ async function captureTarget(id){
 }
 $('#share-close').addEventListener('click',closeShare);
 $('#share-copy').addEventListener('click',()=>{if(!SHARE.blob)return;clipboardImage(Promise.resolve(SHARE.blob)).then(()=>$('#share-message').textContent='Скопійовано! Можна вставляти в Telegram.',()=>$('#share-message').textContent='Браузер заборонив копіювання. Натисніть «Завантажити PNG» й прикріпіть файл.');});
-$('#share-save').addEventListener('click',()=>{if(!SHARE.url)return;const a=document.createElement('a');a.href=SHARE.url;a.download='khmelnytskyi-map-512.png';a.click();});
+$('#share-save').addEventListener('click',()=>{if(!SHARE.url)return;const a=document.createElement('a');a.href=SHARE.url;a.download='khmelnytskyi-map-HD.png';a.click();});
 /* Remember only an explicit checkbox choice, never a dismissal alone. */
 let noticeDismissed=false;try{noticeDismissed=localStorage.getItem('khm-notice-v1')==='1';}catch(_){}
 if(!noticeDismissed){$('#welcome').hidden=false;document.body.classList.add('dialog-open');$('#welcome-go').focus();}
@@ -1900,6 +1915,7 @@ document.addEventListener('keydown',e=>{
   else if(!e.shiftKey&&document.activeElement===last){e.preventDefault();first.focus();}
  }
 },true);
+
 
 window.SIM={setMult,setCount,splitOne,inUkraine,lookOf,courseLL,S,map,createTarget,removeTarget,findTown,parseRoute,stepT,raionAt,inOblast,openModal,applyData,setAdmin,live,setStopped,changeType,setNote};
 })();
