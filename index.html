@@ -472,6 +472,9 @@ body:not(.is-admin) #comments-form,body:not(.is-admin) .comment-post button{disp
 @media(max-width:720px){#comments-toggle{top:192px;bottom:auto;right:10px;padding:10px;font-size:12px}#comments-panel{top:auto;bottom:max(8px,env(safe-area-inset-bottom));left:8px;right:8px;width:auto;max-height:82dvh;height:650px;border-radius:18px}#comments-text{font-size:16px;min-height:84px;max-height:130px}#comments-form{padding:12px}body.comments-open #panel,body.comments-open #target-sheet{visibility:hidden}.comment-post button{min-height:36px}}
 #mst button[data-s="locating"],#defSt button[data-s="locating"]{grid-column:1/-1;color:#ffb0b0;border-color:#874047;background:#2b1c24;line-height:1.4}#defSt button[data-s="locating"]{flex-basis:100%}#mst button[data-s="locating"].on,#defSt button[data-s="locating"].on{background:#ff3b3b;color:#fff;border-color:#ff3b3b}
 .tgt.is-locating .qm{display:block;background:#27151b;color:#ff6666;border:1.5px solid #ff3b3b;width:21px;height:21px;font-size:15px;line-height:18px;right:-9px;top:-10px;box-shadow:0 0 0 2px #0b0e12}
+.info-age{margin:8px 0;padding:9px 11px;background:#152a3d;border:1px solid #385571;border-radius:10px;font-size:12px;font-weight:700;color:#c4ddf5}.info-age.stale{background:#352519;border-color:#8a6035;color:#ffca8b}
+.freshness-controls{padding-bottom:10px;border-bottom:1px solid #30455d}.freshness-controls label{display:flex;align-items:center;gap:6px;font-size:11px;color:#adc2d9;width:100%}.info-minutes{width:65px;min-height:34px;padding:5px;background:#101b2b;color:#eef5ff;border:1px solid #425976;border-radius:7px;font:inherit}.t-age{display:block;font-size:10px;color:#adc5de;margin-top:5px}.t-age.stale{color:#ffbd78}.tupdated{position:absolute;left:50%;top:calc(100% + 12px);transform:translateX(-50%);white-space:nowrap;background:#111c2bef;color:#b7cfe6;border:1px solid #344b62;border-radius:5px;padding:2px 5px;font:600 9px/1.3 system-ui;pointer-events:none}.tupdated:empty{display:none}.tupdated.stale{color:#ffbf80;border-color:#8a6035}
+@media(max-width:720px){.info-minutes{font-size:16px;min-height:40px}}
 </style>
 <link rel="icon" type="image/png" href="./favicon.png?v=1">
 <link rel="apple-touch-icon" href="./favicon.png?v=1">
@@ -941,11 +944,25 @@ function hydrate(t){normalizeMembers(t);t.count=Math.max(1,Math.min(30,t.count||
     pendingSpeedMigration=true;
   }
 }
+function infoTime(t){const v=Number(t.infoUpdatedAt);return Number.isFinite(v)&&v>0&&v<=Date.now()+60000?v:0;}
+function infoAge(t,now=Date.now()){
+ const at=infoTime(t);if(!at)return {text:'Час інформації невідомий',stale:false,title:'Натисніть «Оновлено зараз» або вкажіть вік даних.'};
+ const mins=Math.floor(Math.max(0,now-at)/60000);
+ const text=mins<1?'Інформація: щойно':mins<60?'Інформація: '+mins+' хв тому':mins<1440?'Інформація: '+Math.floor(mins/60)+' год '+mins%60+' хв тому':'Інформація: '+Math.floor(mins/1440)+' дн. тому';
+ return {text,stale:mins>=20,title:'Оновлено '+new Date(at).toLocaleString('uk-UA',{timeZone:'Europe/Kyiv'})};
+}
+function renderInfoAge(t,el){if(!el)return;const a=infoAge(t);el.textContent=a.text;el.title=a.title;el.classList.toggle('stale',a.stale);}
+function setInfoAge(t,minutes=0){
+ if(!ADMIN||t.done||!Number.isFinite(minutes)||minutes<0||minutes>10080)return;
+ t.infoUpdatedAt=Date.now()-minutes*60000;
+ const rt=RT.get(t.id);if(rt){fillPopup(t,rt.pop);renderInfoAge(t,rt.marker.getElement()?.querySelector('.tupdated'));}
+ updateList();commit();
+}
 function rebase(t){catchUp(t);t.b={lat:t.lat,lon:t.lon,hdg:t.hdg,idx:t.idx};t.t0=Date.now();t.simDone=0;}
 
 function serialize(){
   return JSON.parse(JSON.stringify({auto:S.auto,mult:S.mult,nextId:S.nextId,raions:S.raions,alarm:S.alarm,alarmMeta:S.alarmMeta,
-    targets:live().map(t=>{const x={id:t.id,type:t.type,wps:t.wps,speed:t.speed,b:t.b,t0:t.t0,hold:!!t.hold,status:stOf(t),prob:t.prob||0,stopped:!!t.stopped,note:t.note||'',count:cOf(t),members:membersOf(t),mult:mOf(t)};t.sig=sigOf(x);return x;})}));
+    targets:live().map(t=>{const x={id:t.id,type:t.type,wps:t.wps,speed:t.speed,b:t.b,t0:t.t0,hold:!!t.hold,status:stOf(t),prob:t.prob||0,stopped:!!t.stopped,note:t.note||'',infoUpdatedAt:infoTime(t),count:cOf(t),members:membersOf(t),mult:mOf(t)};t.sig=sigOf(x);return x;})}));
 }
 function storeLocal(d){
   try{localStorage.setItem(KEY,JSON.stringify(d));return true;}
@@ -1070,6 +1087,8 @@ let mobileTargetId=null;
 function buildPopup(t){
   const T=TYPES[t.type],el=document.createElement('div');el.className='pinfo';
   el.innerHTML=`<div class="ph"><span class="pi">${SVG[t.type](tcol(t))}</span><div><b data-f="name">${T.name}</b><small>Ціль #${t.id}</small></div></div>
+  <div class="info-age" data-f="info-age"></div>
+  <div class="pa freshness-controls"><button type="button" class="sm" data-a="info-now">↻ Оновлено зараз</button><label>Інформація <input class="info-minutes" type="number" min="0" max="10080" step="1" inputmode="numeric" placeholder="20" aria-label="Скільки хвилин тому отримано інформацію"> хв тому</label><button type="button" class="sm" data-a="info-age">Задати час</button></div>
   <div class="pa quick-actions"><button type="button" class="sm" data-a="edit">✎ Змінити курс</button><button type="button" class="sm capture" data-a="capture">▣ Зробити скріншот</button></div>
   <dl><dt data-f="cntt">Кількість</dt><dd data-f="cnt"></dd><dt class="nt" data-f="notet">Коментар</dt><dd class="nt" data-f="note"></dd><dt>Статус курсу</dt><dd data-f="st"></dd><dt>Імовірність</dt><dd data-f="prob"></dd><dt>Швидкість</dt><dd data-f="spd"></dd><dt>Курс</dt><dd data-f="hdg"></dd><dt>Маршрут</dt><dd data-f="route"></dd>
   <dt>Наступна точка</dt><dd data-f="next"></dd><dt>До кінця маршруту</dt><dd data-f="rem"></dd><dt>Прибуде через</dt><dd data-f="eta"></dd>
@@ -1090,7 +1109,9 @@ function buildPopup(t){
   inp.addEventListener('input',()=>{clearTimeout(nt);nt=setTimeout(()=>setNote(t,inp.value),500);});
   inp.addEventListener('change',()=>{clearTimeout(nt);setNote(t,inp.value);});
   el.addEventListener('click',e=>{e.stopPropagation();const b=e.target.closest('button');if(!b)return;e.preventDefault();const a=b.dataset.a;
-    if(a==='capture')captureTarget(t.id);
+    if(a==='info-now')setInfoAge(t,0);
+    else if(a==='info-age'){const field=el.querySelector('.info-minutes');if(field.value===''||!field.checkValidity()){field.reportValidity();return;}setInfoAge(t,Number(field.value));}
+    else if(a==='capture')captureTarget(t.id);
     else if(a==='del')removeTarget(t.id,'manual');
     else if(a==='edit')openModal('edit',t.id);
     else if(a==='stop')setStopped(t,!t.stopped);
@@ -1107,6 +1128,7 @@ function fillPopup(t,el){
   const set=(f,v)=>{const n=el.querySelector(`[data-f="${f}"]`);if(n)n.textContent=v;};
   const wp=t.wps[t.idx]||{name:'—',lat:t.lat,lon:t.lon},rem=remainM(t);
   el.style.setProperty('--c',tcol(t));
+  renderInfoAge(t,el.querySelector('[data-f="info-age"]'));
   set('name',nameOf(t));const summary=el.querySelector('.mobile-summary');if(summary)summary.textContent=ST[lookOf(t)].name+' · '+(t.stopped?'0':t.speed)+' км/год · '+(t.wps[t.idx]?.name||'курс втрачено');
   set('cnt',compositionText(t));
   memberEditor(el.querySelector('.member-editor'),t,(i,k)=>{if(!ADMIN)return;normalizeMembers(t);t.members[i]=k;if(cOf(t)===1)t.type=k;refreshTarget(t);});
@@ -1155,7 +1177,7 @@ function syncLook(t,rt){
 function addRuntime(t){
   const T=TYPES[t.type],col=tcol(t);
   const isz=iconSize(t);
-  const icon=L.divIcon({className:'tgt'+(cOf(t)>1?' grp':''),iconSize:[isz,isz],iconAnchor:[isz/2,isz/2],html:`<div class="ring" style="--c:${col}"></div><div class="rot" style="--c:${col}">${iconHTML(t,col)}</div><svg class="harrow" viewBox="0 0 24 28" width="22" height="26" aria-hidden="true" style="--c:${col}"><path d="M12 26 L2 12 H8 V2 H16 V12 H22 Z" fill="${col}" stroke="#0b0e12" stroke-width="1.6" stroke-linejoin="round"/></svg><span class="tid">${t.id}</span><b class="cnt"></b><b class="qm">?</b><span class="tnote"></span>`});
+  const icon=L.divIcon({className:'tgt'+(cOf(t)>1?' grp':''),iconSize:[isz,isz],iconAnchor:[isz/2,isz/2],html:`<div class="ring" style="--c:${col}"></div><div class="rot" style="--c:${col}">${iconHTML(t,col)}</div><svg class="harrow" viewBox="0 0 24 28" width="22" height="26" aria-hidden="true" style="--c:${col}"><path d="M12 26 L2 12 H8 V2 H16 V12 H22 Z" fill="${col}" stroke="#0b0e12" stroke-width="1.6" stroke-linejoin="round"/></svg><span class="tid">${t.id}</span><b class="cnt"></b><b class="qm">?</b><span class="tnote"></span><span class="tupdated"></span>`});
   const marker=L.marker([t.lat,t.lon],{icon,zIndexOffset:1000,draggable:true,title:`${T.name} #${t.id}`}).addTo(map);
   marker.dragging.disable();   // тягнути можна лише зупинену ціль (і лише адміну)
   const line=L.polyline([],{color:col,weight:1.6,opacity:.75,dashArray:'4 7',interactive:false}).addTo(map);
@@ -1200,7 +1222,7 @@ function createTarget(type,towns,dirKey,status,prob,note,count,mult,origin,membe
     const sp=spawnPoint(wps[0],dirKey);
     b={lat:sp.lat,lon:sp.lon,hdg:bearing(sp.lat,sp.lon,wps[0].lat,wps[0].lon),idx:0};
   }
-  const t={id:(S.nextId=nid()+1,nid()),type,wps,speed:rollSpeed(type),count:Math.max(1,Math.min(30,count||1)),mult:mult||S.mult,note:note||'',stopped:false,b,t0:Date.now(),hold,status:stOf({status}),prob:status==='predicted'?(prob||60):0};
+  const t={id:(S.nextId=nid()+1,nid()),infoUpdatedAt:Date.now(),type,wps,speed:rollSpeed(type),count:Math.max(1,Math.min(30,count||1)),mult:mult||S.mult,note:note||'',stopped:false,b,t0:Date.now(),hold,status:stOf({status}),prob:status==='predicted'?(prob||60):0};
   t.members=members;hydrate(t);S.targets.push(t);addRuntime(t);renderList();tick();commit();
   return t;
 }
@@ -1232,8 +1254,18 @@ function setNote(t,v){
 }
 function setMult(t,m){                           // власна швидкість часу цієї цілі
   if(!ADMIN||t.done||!MULTS.includes(m)||mOf(t)===m)return;
+  const rt=RT.get(t.id),wasOpen=!!rt?.marker.isPopupOpen();
+  const scroller=mobileTargetId===t.id?$('#sheet-content'):rt?.marker.getPopup()?.getElement()?.querySelector('.leaflet-popup-content');
+  const scrollTop=scroller?.scrollTop||0;
   rebase(t);t.mult=m;
-  refreshTarget(t);toast(`#${t.id} · ×${m}`);
+  // Changing a multiplier only updates values; keep the existing controls mounted.
+  if(rt)fillPopup(t,rt.pop);
+  updateList();commit();
+  if(wasOpen&&rt&&!rt.marker.isPopupOpen()){
+    const popup=rt.marker.getPopup(),autoPan=popup.options.autoPan;
+    popup.options.autoPan=false;rt.marker.openPopup();popup.options.autoPan=autoPan;
+  }
+  if(scroller)scroller.scrollTop=scrollTop;
 }
 function setCount(t,n){
   n=Math.max(1,Math.min(30,n));
@@ -1244,7 +1276,7 @@ function splitOne(t){                             // відділити одну
   if(!ADMIN||t.done||cOf(t)<2)return;
   rebase(t);normalizeMembers(t);const splitType=t.members.pop();t.count=t.members.length;
   const p=moveBy(t.lat,t.lon,2500,(t.hdg+90)%360);
-  const n={id:nid(),type:splitType,wps:t.wps.map(w=>({name:w.name,lat:w.lat,lon:w.lon,sub:w.sub||''})),speed:t.speed,count:1,mult:mOf(t),note:t.note||'',stopped:!!t.stopped,
+  const n={id:nid(),infoUpdatedAt:infoTime(t),type:splitType,wps:t.wps.map(w=>({name:w.name,lat:w.lat,lon:w.lon,sub:w.sub||''})),speed:t.speed,count:1,mult:mOf(t),note:t.note||'',stopped:!!t.stopped,
     b:{lat:p[0],lon:p[1],hdg:t.hdg,idx:t.idx},t0:Date.now(),hold:!!t.hold,status:stOf(t),prob:t.prob||0};
   hydrate(n);S.targets.push(n);addRuntime(n);
   refreshTarget(t);
@@ -1306,7 +1338,7 @@ function renderList(){
   if(!live().length){box.innerHTML='<p class="empty">Активних цілей немає</p>';return;}
   for(const t of live()){
     const T=TYPES[t.type],d=document.createElement('div');d.className='titem';d.dataset.id=t.id;
-    d.innerHTML=`<span class="ti">${SVG[t.type](tcol(t))}</span><div><b><span class="nm">${nameOf(t)}</span> #${t.id}${lookOf(t)!=='confirmed'?' <span class="qtag">?</span>':''}</b><small></small></div><button class="ib mm" data-a="mult" title="Швидкість часу цієї цілі (клік — наступна)">×${mOf(t)}</button><button class="ib" data-a="stop" title="Зупинити" aria-label="Зупинити">⏸</button><button class="ib" data-a="edit" title="Змінити курс" aria-label="Змінити курс">✎</button><button class="ib x" data-a="del" title="Забрати ціль" aria-label="Забрати ціль">✕</button>`;
+    d.innerHTML=`<span class="ti">${SVG[t.type](tcol(t))}</span><div><b><span class="nm">${nameOf(t)}</span> #${t.id}${lookOf(t)!=='confirmed'?' <span class="qtag">?</span>':''}</b><small></small><span class="t-age"></span></div><button class="ib mm" data-a="mult" title="Швидкість часу цієї цілі (клік — наступна)">×${mOf(t)}</button><button class="ib" data-a="stop" title="Зупинити" aria-label="Зупинити">⏸</button><button class="ib" data-a="edit" title="Змінити курс" aria-label="Змінити курс">✎</button><button class="ib x" data-a="del" title="Забрати ціль" aria-label="Забрати ціль">✕</button>`;
     box.appendChild(d);
   }
   updateList();
@@ -1315,6 +1347,7 @@ function updateList(){
   for(const t of live()){
     const it=document.querySelector(`.titem[data-id="${t.id}"]`);if(!it)continue;
     const el=it.querySelector('small');if(el){el.textContent=(t.stopped?'⏸ ':'')+(stOf(t)==='untracked'||t.free||t.hold||t.stopped?routeText(t):routeText(t)+' · '+km(remainM(t))+' км')+(stOf(t)==='predicted'&&t.prob&&!t.stopped?' · '+t.prob+'%':'')+(t.note?' · «'+t.note+'»':'');el.title=el.textContent;}
+    renderInfoAge(t,it.querySelector('.t-age'));
     const nmEl=it.querySelector('.nm');if(nmEl&&nmEl.textContent!==nameOf(t))nmEl.textContent=nameOf(t);
     const mmb=it.querySelector('[data-a="mult"]');if(mmb&&mmb.textContent!=='×'+mOf(t))mmb.textContent='×'+mOf(t);
     const sbt=it.querySelector('[data-a="stop"]');if(sbt){const w=t.stopped?'▶':'⏸';if(sbt.textContent!==w){sbt.textContent=w;sbt.title=t.stopped?'Продовжити рух':'Зупинити';}}
@@ -1645,7 +1678,7 @@ function tick(){
     r.row.querySelector('small').textContent=LV[eff].name+(since?' · '+fmtDur(Date.now()-since):'')+(au[r.id]>st.manual&&au[r.id]>0?' · авто':'')+(al.lvl>0&&al.lvl===eff?' · Tryvoha.online':'');
   }
   updateList();
-  for(const [id,rt] of RT){if(rt.marker.isPopupOpen()||mobileTargetId===id){const t=live().find(x=>x.id===id);if(t)fillPopup(t,rt.pop);}}
+  for(const [id,rt] of RT){const t=live().find(x=>x.id===id);if(!t)continue;renderInfoAge(t,rt.marker.getElement()?.querySelector('.tupdated'));if(rt.marker.isPopupOpen()||mobileTargetId===id)fillPopup(t,rt.pop);}
   const d=new Date();$('#clock').textContent=`${pad2(d.getDate())}/${pad2(d.getMonth()+1)}/${String(d.getFullYear()).slice(2)}, ${pad2(d.getHours())}:${pad2(d.getMinutes())}`;
   if(dirty||(!USE_FB&&ADMIN))commit();
 }
@@ -1667,12 +1700,13 @@ function applyData(d){
     if(x&&sigOf(x)===t.sig){      // не змінилась — лишаємо як є; лише коментар підтягуємо, якщо його зараз не друкують
       const rt0=RT.get(t.id),ci=rt0&&rt0.pop.querySelector('.cm');
       if(!(ci&&document.activeElement===ci))t.note=x.note||'';
+      t.infoUpdatedAt=infoTime(x);
       incoming.delete(t.id);continue;
     }
     dropRuntime(t.id);S.targets.splice(S.targets.indexOf(t),1);
   }
   for(const x of incoming.values()){
-    const t={id:x.id,type:x.type,wps:x.wps,speed:x.speed,count:x.count||1,members:x.members,mult:x.mult||S.mult,b:x.b,t0:x.t0,hold:!!x.hold,stopped:!!x.stopped,note:x.note||'',status:stOf(x),prob:x.prob||0,sig:sigOf(x)};
+    const t={id:x.id,infoUpdatedAt:infoTime(x),type:x.type,wps:x.wps,speed:x.speed,count:x.count||1,members:x.members,mult:x.mult||S.mult,b:x.b,t0:x.t0,hold:!!x.hold,stopped:!!x.stopped,note:x.note||'',status:stOf(x),prob:x.prob||0,sig:sigOf(x)};
     hydrate(t);S.targets.push(t);if(!t.done)addRuntime(t);
   }
   const na={};for(const r of RAIONS){const x=(d.alarm||{})[r.id]||{};na[r.id]={lvl:+x.lvl||0,since:x.since||null};}
@@ -2099,7 +2133,7 @@ async function renderShareCard(t){
   ctx.fillStyle='#eef4fb';ctx.font='13px system-ui';wrapText(ctx,t.note.trim(),24,432,464,3,15);
  }
  ctx.strokeStyle='#293b4f';ctx.beginPath();ctx.moveTo(24,473);ctx.lineTo(488,473);ctx.stroke();
- ctx.fillStyle='#a8b9cc';ctx.font='10px system-ui';ctx.fillText('Курс за внесеними даними.',24,488);ctx.fillText('Початкова та поточна позиції можуть бути неточними.',24,502);
+ ctx.fillStyle='#a8b9cc';ctx.font='10px system-ui';fitText(ctx,infoAge(t,now.getTime()).text,24,488,464);ctx.fillText('Курс за внесеними даними; позиції можуть бути неточними.',24,502);
  return new Promise((resolve,reject)=>canvas.toBlob(b=>b?resolve(b):reject(new Error('Не вдалося створити PNG')),'image/png'));
 }
 
