@@ -347,9 +347,62 @@ body.picking #map,body.picking #map .leaflet-interactive{cursor:crosshair!import
 .tgt.is-untracked .qm{display:grid;place-items:center;background:#57dc9b;color:#0d241a;width:21px;height:21px}
 .tgt.is-untracked .ring{animation:none;border-style:dashed;opacity:.6;transform:none}
 .tgt.is-untracked .harrow{display:none}.qtag svg{width:13px;height:13px;vertical-align:-2px}
+.dialog-layer{position:fixed;inset:0;z-index:4000;display:grid;place-items:center;padding:16px;background:#050b14d9;backdrop-filter:blur(8px);overflow:auto}
+.dialog-card{width:min(100%,480px);padding:24px;background:#141e2b;border:1px solid #34455c;border-radius:20px;max-height:calc(100dvh - 32px);overflow:auto;box-shadow:0 24px 80px #0009}
+.dialog-card h2{font-size:22px;letter-spacing:0;text-transform:none;color:#eef4ff;line-height:1.25;margin:10px 0 18px;display:block}
+.dialog-card h2::before{display:none}.dialog-card p{color:#bdcbdc;line-height:1.6}.dialog-card strong{color:#f2f6fc}
+.eyebrow{font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:#ffb75a;font-weight:800}
+#welcome-go{margin-top:20px}.dialog-card header{display:flex;align-items:center;justify-content:space-between;gap:10px}.dialog-card header h2{margin:0}
+#share-preview{display:block;width:100%;height:auto;border-radius:12px;border:1px solid #34455c}#share-message{font-size:13px;min-height:22px}
+.quick-actions .sm{min-height:42px}.quick-actions .capture{background:#18372e;border-color:#2b775b;color:#9bf0c4}
+#target-sheet{position:fixed;z-index:1800;left:8px;right:8px;bottom:8px;background:#121c28;border:1px solid #34455c;border-radius:20px;box-shadow:0 -12px 45px #0008;overflow:hidden}
+#target-sheet>header{display:flex;align-items:center;justify-content:space-between;padding:10px 14px;border-bottom:1px solid #2a3545}
+#sheet-content{padding:16px;max-height:calc(78dvh - 66px);overflow:auto;overscroll-behavior:contain}
+body.sheet-open #panel,body.sheet-open #lock{display:none!important}
+body.dialog-open #panel,body.dialog-open #target-sheet{pointer-events:none}
+.mobile-summary{display:none}.mobile-details summary{display:none}
+@media(max-width:720px){
+ .mobile-summary{display:block;color:var(--c);font-size:13px;line-height:1.5;margin:0 0 10px}.mobile-details{border:1px solid #2a3b50;border-radius:12px;margin:10px 0;padding:0 10px}.mobile-details summary{display:list-item;padding:12px 0;cursor:pointer;font-weight:700;color:#bcd1e8}
+ #panel,#panel.collapsed{top:auto;bottom:max(8px,env(safe-area-inset-bottom));left:8px;right:8px}
+ #panel{max-height:65dvh}#panel>header{padding:10px 12px}#panel h1{font-size:14px}#panel header p{font-size:10px}
+ .ib{width:42px;height:42px}#collapse{width:44px;height:44px}#pbody{padding:2px 12px 14px}
+ #panel .titem{grid-template-columns:repeat(4,minmax(0,1fr));gap:6px;padding:10px}
+ #panel .titem .ti{grid-column:1;grid-row:1;width:40px}#panel .titem>div{grid-column:2/-1;grid-row:1}
+ #panel .titem .ib,#panel .titem .ib.mm{width:100%;height:42px;font-size:15px}
+ #modal{padding:8px;align-items:center}#mform{margin:auto;max-height:calc(100dvh - 16px);overflow:auto;padding:18px 14px;border-radius:18px}
+ #mform>.actions{position:sticky;bottom:-18px;margin:14px -14px -18px;padding:12px 14px calc(12px + env(safe-area-inset-bottom));background:#131c28;border-top:1px solid #34455c;z-index:3}
+ input[type=text],input[type=password],select{font-size:16px!important;min-height:44px}.seg button,.ghost,.pinfo .sm{min-height:44px}
+ .pinfo dl{font-size:13px;grid-template-columns:minmax(90px,.8fr) minmax(0,1.2fr)}.pinfo dd{overflow-wrap:anywhere}
+ .pinfo .pa{gap:8px}.pinfo .quick-actions{position:sticky;top:-16px;z-index:3;background:#121c28;padding:10px 0;margin-top:0}
+ .pinfo .ptypes{display:grid;grid-template-columns:repeat(3,1fr)}.pinfo .ptypes .sm{min-height:64px;font-size:11px}
+ .pinfo .pmult,.pinfo .pcnt{display:flex}.pinfo .pmult .sm{min-width:0}
+ #badge{left:8px;transform:none;max-width:calc(100vw - 66px);font-size:8px}#status{left:8px;transform:none;max-width:calc(100vw - 66px);font-size:9px;justify-content:flex-start;border-radius:10px;white-space:normal}
+ #clock{top:100px;font-size:10px}#target-sheet{bottom:max(8px,env(safe-area-inset-bottom))}
+ .dialog-card{padding:18px}.dialog-card h2{font-size:20px}.dialog-card .actions{grid-template-columns:1fr;gap:8px}
+ #toast{bottom:calc(80px + env(safe-area-inset-bottom));font-size:12px}
+}
+
 </style>
 </head>
 <body>
+<div id="welcome" class="dialog-layer" hidden role="dialog" aria-modal="true" aria-labelledby="welcome-title">
+ <div class="dialog-card"><span class="eyebrow">Перед початком</span><h2 id="welcome-title">Увага: карта Хмельниччини</h2>
+ <p>Ця карта призначена для <strong>Хмельницької області</strong>. Вона не є офіційною системою оповіщення.</p>
+ <p>Позиції та рух цілей розраховуються за внесеними даними. Вони можуть бути неточними. Оновлення тривог залежать від стороннього сервісу та інтернету — можливі затримки й збої.</p>
+ <p><strong>Відсутність мітки або зелений колір не означають безпеку.</strong> Орієнтуйтеся на офіційні сповіщення та вказівки влади.</p>
+ <label class="chk"><input id="welcome-remember" type="checkbox"> Не показувати знову на цьому пристрої</label>
+ <button type="button" id="welcome-go" class="primary">Зрозуміло, продовжити</button></div>
+</div>
+<section id="target-sheet" hidden aria-label="Керування ціллю"><header><b>Керування ціллю</b><button id="sheet-close" class="ib" aria-label="Закрити картку">✕</button></header><div id="sheet-content"></div></section>
+<div id="share-dialog" class="dialog-layer" hidden role="dialog" aria-modal="true" aria-labelledby="share-title">
+ <div class="dialog-card"><header><h2 id="share-title">Картка для публікації</h2><button id="share-close" class="ib" aria-label="Закрити попередній перегляд">✕</button></header>
+ <p class="hint">PNG · 512 × 512 · знімок стану на момент натискання</p>
+ <img id="share-preview" alt="Попередній перегляд інформаційної картки" hidden>
+ <p id="share-message" role="status">Створюю картку…</p>
+ <div class="actions"><button class="ghost" id="share-save" disabled>Завантажити PNG</button><button class="primary" id="share-copy" disabled>Копіювати зображення</button></div>
+ </div>
+</div>
+
 <div id="map"></div>
 <div id="badge"><i></i>Неофіційна карта · за відкритими джерелами · можливі неточності</div>
 <div id="offline" hidden role="alert">⚠ Адміністратора немає в мережі — карта наразі не оновлюється</div>
@@ -371,11 +424,11 @@ body.picking #map,body.picking #map .leaflet-interactive{cursor:crosshair!import
       <p class="hint">Авто: район із ціллю — червоний, район на маршруті — оранжевий, ціль ще за межами області — жовтий. Ручний рівень не знижується нижче вибраного.</p>
     </section>
     <section id="alsec">
-      <h2>Автотривога</h2>
-      <label class="chk"><input type="checkbox" id="alOn"> Брати справжні тривоги з alerts.in.ua</label>
-      <div class="admrow" id="alTokRow"><input type="password" id="alTok" placeholder="API-токен alerts.in.ua" autocomplete="off" spellcheck="false"><button class="ghost" type="button" id="alSave">Зберегти</button></div>
-      <p class="hint" id="alSt"></p>
-      <p class="hint">Райони самі червоніють на тривогу й гаснуть на відбій, а внизу вилазить повідомлення. Токен безкоштовний: <a href="https://alerts.in.ua/api-request" target="_blank" rel="noopener">alerts.in.ua/api-request</a>. Він зберігається лише в цьому браузері. Працює, поки сторінка відкрита в адміна.</p>
+      <h2>Автоматичні тривоги</h2>
+      <label class="chk"><input type="checkbox" id="alOn"> Оновлювати тривоги без API-ключа</label>
+      <p class="hint" id="alSt" role="status"></p>
+      <p class="hint">Джерело: <a href="https://tryvoha.online/" target="_blank" rel="noopener">Tryvoha.online</a> · неофіційний сервіс. Перевірка кожні 30 секунд, поки карта відкрита в адміністратора. Тривога по області застосовується до всіх трьох районів.</p>
+      <p class="hint">Ручні рівні та рівні від цілей можуть залишити район підсвіченим після відбою. Якщо вимкнути оновлення або втратити зв’язок, останні дані зберігаються.</p>
     </section>
     <section>
       <button class="primary" id="add">＋ Додати ціль</button>
@@ -860,9 +913,11 @@ function labelRaion(r,since){
 
 /* ───────── цілі на карті ───────── */
 const RT=new Map();
+let mobileTargetId=null;
 function buildPopup(t){
   const T=TYPES[t.type],el=document.createElement('div');el.className='pinfo';
   el.innerHTML=`<div class="ph"><span class="pi">${SVG[t.type](tcol(t))}</span><div><b data-f="name">${T.name}</b><small>Ціль #${t.id}</small></div></div>
+  <div class="pa quick-actions"><button type="button" class="sm" data-a="edit">✎ Змінити курс</button><button type="button" class="sm capture" data-a="capture">▣ Зробити скріншот</button></div>
   <dl><dt data-f="cntt">Кількість</dt><dd data-f="cnt"></dd><dt class="nt" data-f="notet">Коментар</dt><dd class="nt" data-f="note"></dd><dt>Статус курсу</dt><dd data-f="st"></dd><dt>Імовірність</dt><dd data-f="prob"></dd><dt>Швидкість</dt><dd data-f="spd"></dd><dt>Курс</dt><dd data-f="hdg"></dd><dt>Маршрут</dt><dd data-f="route"></dd>
   <dt>Наступна точка</dt><dd data-f="next"></dd><dt>До кінця маршруту</dt><dd data-f="rem"></dd><dt>Прибуде через</dt><dd data-f="eta"></dd>
   <dt>Поблизу</dt><dd data-f="near"></dd><dt>Район</dt><dd data-f="raion"></dd></dl>
@@ -880,7 +935,8 @@ function buildPopup(t){
   inp.addEventListener('input',()=>{clearTimeout(nt);nt=setTimeout(()=>setNote(t,inp.value),500);});
   inp.addEventListener('change',()=>{clearTimeout(nt);setNote(t,inp.value);});
   el.addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;const a=b.dataset.a;
-    if(a==='del')removeTarget(t.id,'manual');
+    if(a==='capture')captureTarget(t.id);
+    else if(a==='del')removeTarget(t.id,'manual');
     else if(a==='edit')openModal('edit',t.id);
     else if(a==='stop')setStopped(t,!t.stopped);
     else if(a==='type')changeType(t,b.dataset.k);
@@ -896,7 +952,7 @@ function fillPopup(t,el){
   const set=(f,v)=>{const n=el.querySelector(`[data-f="${f}"]`);if(n)n.textContent=v;};
   const wp=t.wps[t.idx]||{name:'—',lat:t.lat,lon:t.lon},rem=remainM(t);
   el.style.setProperty('--c',tcol(t));
-  set('name',nameOf(t));
+  set('name',nameOf(t));const summary=el.querySelector('.mobile-summary');if(summary)summary.textContent=ST[lookOf(t)].name+' · '+(t.stopped?'0':t.speed)+' км/год · '+(t.wps[t.idx]?.name||'курс втрачено');
   set('cnt',cOf(t)+' од.');
   const cT=el.querySelector('[data-f="cntt"]'),cD=el.querySelector('[data-f="cnt"]');if(cT)cT.hidden=cOf(t)<2;if(cD)cD.hidden=cOf(t)<2;
   el.querySelectorAll('[data-a="mult"]').forEach(b=>b.classList.toggle('on',+b.dataset.m===mOf(t)));
@@ -950,7 +1006,7 @@ function addRuntime(t){
   const trail=L.polyline([],{color:col,weight:2.5,opacity:.3,interactive:false}).addTo(map);
   const pop=buildPopup(t);
   marker.bindPopup(pop,{className:'tpop',offset:[0,-8],autoPanPadding:[30,30]});
-  marker.on('popupopen',()=>fillPopup(t,pop));
+  marker.on('popupopen',()=>{fillPopup(t,pop);if(innerWidth<=720)showTargetSheet(t,rt);else{const details=pop.querySelector('.mobile-details');if(details)details.open=true;}});
   const rt={marker,line,trail,tp:[],pop,rot:marker.getElement().querySelector('.rot'),noteEl:marker.getElement().querySelector('.tnote'),canDrag:false,dragging:false,note:''};
   RT.set(t.id,rt);
   marker.on('dragstart',()=>{rt.dragging=true;});
@@ -1050,7 +1106,7 @@ function setStopped(t,v){
   refreshTarget(t);
   toast(v?`#${t.id} зупинено`:`#${t.id} продовжує рух`);
 }
-function dropRuntime(id){const rt=RT.get(id);if(rt){rt.marker.remove();rt.line.remove();rt.trail.remove();RT.delete(id);}}
+function dropRuntime(id){if(mobileTargetId===id)closeTargetSheet();const rt=RT.get(id);if(rt){rt.marker.remove();rt.line.remove();rt.trail.remove();RT.delete(id);}}
 function removeTarget(id,why){
   const t=S.targets.find(x=>x.id===id);if(!t)return;
   dropRuntime(id);
@@ -1189,7 +1245,7 @@ function refreshModal(kick){
 let kickT;
 function refreshModalSoon(){refreshModal(false);clearTimeout(kickT);kickT=setTimeout(()=>refreshModal(true),450);}
 function openModal(mode,id){
-  M.mode=mode;M.id=id||null;M.origin=null;syncOrigin();
+  closeTargetSheet();M.mode=mode;M.id=id||null;M.origin=null;syncOrigin();
   if(!ADMIN)return;
   const t=id?live().find(x=>x.id===id):null;
   if(t)M.type=t.type;
@@ -1430,12 +1486,16 @@ function tick(){
     if(changed)styleRaion(r);
     labelRaion(r,since);
     r.row.style.setProperty('--c',LV[eff].c);
-    r.row.querySelector('small').textContent=LV[eff].name+(since?' · '+fmtDur(Date.now()-since):'')+(au[r.id]>st.manual&&au[r.id]>0?' · авто':'')+(al.lvl>0&&al.lvl===eff?' · alerts.in.ua':'');
+    r.row.querySelector('small').textContent=LV[eff].name+(since?' · '+fmtDur(Date.now()-since):'')+(au[r.id]>st.manual&&au[r.id]>0?' · авто':'')+(al.lvl>0&&al.lvl===eff?' · Tryvoha.online':'');
   }
   updateList();
-  for(const [id,rt] of RT){if(rt.marker.isPopupOpen()){const t=live().find(x=>x.id===id);if(t)fillPopup(t,rt.pop);}}
+  for(const [id,rt] of RT){if(rt.marker.isPopupOpen()||mobileTargetId===id){const t=live().find(x=>x.id===id);if(t)fillPopup(t,rt.pop);}}
   const am=S.alarmMeta,ael=$('#stAl');
-  if(am&&am.on){const age=Date.now()-am.t;ael.innerHTML='Тривоги: '+(age>300000?'<b class="bad">авто · дані '+Math.round(age/60000)+' хв тому</b>':'<b class="ok">авто</b>');}else ael.innerHTML='';
+  if(am&&am.on){
+    const age=Date.now()-(am.t||0);
+    ael.textContent=am.error?'Тривоги: дані недоступні · останній стан':!am.t?'Тривоги: очікуємо дані':age>300000?'Тривоги: застарілі дані ('+Math.round(age/60000)+' хв)':'Тривоги: авто · '+(am.source==='tryvoha'?'Tryvoha.online':'джерело невідоме');
+    ael.style.color=am.error||age>300000?'#ffb579':'#6ee7a0';
+  }else{ael.textContent=am&&am.t?'Тривоги: авто вимкнено · останній стан':'';ael.style.color='#a4afbf';}
   const d=new Date();$('#clock').textContent=`${pad2(d.getDate())}/${pad2(d.getMonth()+1)}/${String(d.getFullYear()).slice(2)}, ${pad2(d.getHours())}:${pad2(d.getMinutes())}`;
   if(dirty||(!USE_FB&&ADMIN))commit();
 }
@@ -1462,39 +1522,40 @@ function applyData(d){
   }
   const na={};for(const r of RAIONS){const x=(d.alarm||{})[r.id]||{};na[r.id]={lvl:+x.lvl||0,since:x.since||null};}
   if(alarmSeen)announce(S.alarm,na);alarmSeen=true;
-  S.alarm=na;S.alarmMeta=d.alarmMeta&&d.alarmMeta.on?{on:true,t:+d.alarmMeta.t||0}:{on:false,t:0};
+  S.alarm=na;S.alarmMeta={on:!!d.alarmMeta?.on,t:+d.alarmMeta?.t||0,source:d.alarmMeta?.source||'',error:typeof d.alarmMeta?.error==='string'?d.alarmMeta.error:''};
   RAIONS.forEach(r=>{r.sel.value=S.raions[r.id].manual;});
   $('#auto').checked=S.auto;syncMult();renderList();tick();flushSpeedMigration();
 }
 function setAdmin(v){
   if(ADMIN===v)return;
-  ADMIN=v;document.body.classList.toggle('is-admin',v);if(!v)closeModal();
+  ADMIN=v;document.body.classList.toggle('is-admin',v);if(!v){closeModal();closeTargetSheet();}
   map.invalidateSize();tick();checkPresence();alSync();flushSpeedMigration();
 }
-/* ───────── автотривога з alerts.in.ua ─────────
-   Раз на 30 с адмін (у кого відкрита сторінка й вписаний токен) питає API, які райони області зараз у тривозі,
-   і записує це в спільний стан — глядачі отримують його разом з рештою. Відбій приходить так само. */
-const AL={
-  URL:'https://api.alerts.in.ua/v1/alerts/active.json',
-  PROXY:'',                    // свій проксі (напр. Cloudflare Worker) без токена в браузері; якщо вказано — токен тут не потрібен
-  EVERY:30000,OBLAST:'Хмельницька область',OBLAST_UID:'3',
-  tok:'',on:false,timer:null,busy:false,err:'',ok:null
-};
-try{AL.tok=localStorage.getItem('khm-al-tok')||'';AL.on=localStorage.getItem('khm-al-on')==='1';}catch(_){}
-let alarmSeen=!USE_FB;         // перше завантаження стану не оголошуємо як «нову» тривогу
+/* Автотривога: public Tryvoha.online API, no token. */
+const AL={URL:'https://tryvoha.online/api/v1/alerts',EVERY:30000,on:true,timer:null,busy:false,err:'',ok:null,controller:null,epoch:0};
+try{AL.on=localStorage.getItem('khm-tryvoha-on')!=='0';}catch(_){}
+let alarmSeen=!USE_FB;
 const hms=ms=>{const d=new Date(ms);return pad2(d.getHours())+':'+pad2(d.getMinutes())+':'+pad2(d.getSeconds());};
-const alRaion=s=>{const n=norm(s);return n.includes('шепетів')?'shepetivskyi':n.includes('хмельниц')?'khmelnytskyi':(n.includes('камянець')||n.includes('камянец'))?'kamianets':null;};
+const ALERT_REGIONS={'sepetivskii-raion':'shepetivskyi','xmelnickii-raion':'khmelnytskyi','kamianec-podilskii-raion':'kamianets'};
 function alParse(j){
-  const lv={};RAIONS.forEach(r=>lv[r.id]={lvl:0,since:null});
-  const bump=(id,l,since)=>{const x=lv[id];if(!x)return;if(l>x.lvl)x.lvl=l;if(since&&(!x.since||since<x.since))x.since=since;};
-  for(const a of (j&&j.alerts)||[]){
-    const mine=String(a.location_oblast_uid||'')===AL.OBLAST_UID||a.location_oblast===AL.OBLAST||(a.location_type==='oblast'&&a.location_title===AL.OBLAST);
-    if(!mine||(a.alert_type&&a.alert_type!=='air_raid'))continue;
-    const l=a.alert_level==='yellow'?1:3,ms=a.started_at?Date.parse(a.started_at):NaN,since=isFinite(ms)?ms:null;
-    if(a.location_type==='oblast')RAIONS.forEach(r=>bump(r.id,l,since));            // тривога на всю область
-    else if(a.location_type==='raion'){const id=alRaion(a.location_raion||a.location_title);if(id)bump(id,l,since);}
+  const timestamp=Date.parse(j&&j.updated_at);
+  if(!j||!Array.isArray(j.alerts)||!Number.isFinite(timestamp)||j.active!==j.alerts.length)throw new Error('неповна або некоректна відповідь сервісу');
+  if(Date.now()-timestamp>300000||timestamp-Date.now()>120000)throw new Error('дані сервісу застарілі або час пристрою неправильний');
+  const lv=Object.fromEntries(RAIONS.map(r=>[r.id,{lvl:0,since:null}]));
+  const bump=(id,level,since)=>{const x=lv[id];x.lvl=Math.max(x.lvl,level);if(!x.since||since<x.since)x.since=since;};
+  for(const a of j.alerts){
+    if(!a||typeof a.slug!=='string'||typeof a.type!=='string'||!['red','yellow'].includes(a.level)||!Number.isFinite(Date.parse(a.started_at)))throw new Error('невідомий формат тривог');
+    const whole=a.type==='state'&&a.slug==='xmelnycka-oblast';
+    if(!whole&&a.oblast_slug!=='xmelnycka-oblast')continue;
+    const since=Date.parse(a.started_at),level=a.level==='yellow'?1:3;
+    if(whole)RAIONS.forEach(r=>bump(r.id,level,since));
+    else{
+      const id=ALERT_REGIONS[a.slug];
+      if(!id)throw new Error('невідомий район Хмельниччини у відповіді');
+      bump(id,level,since);
+    }
   }
-  return lv;
+  return {levels:lv,timestamp};
 }
 function announce(prev,next){
   const red=[],yel=[],clr=[];
@@ -1502,74 +1563,61 @@ function announce(prev,next){
     const pa=prev[r.id]||{},a=pa.lvl|0,b=(next[r.id]||{}).lvl|0;
     if(a===b)continue;
     if(b===0)clr.push(r.name+(pa.since?' ('+fmtDur(Date.now()-pa.since)+')':''));
-    else if(b===3)red.push(r.name);
-    else yel.push(r.name);
+    else if(b===3)red.push(r.name);else yel.push(r.name);
   }
   const msg=[red.length&&'🚨 Тривога: '+red.join(', '),yel.length&&'⚠ Загроза: '+yel.join(', '),clr.length&&'✅ Відбій: '+clr.join(', ')].filter(Boolean).join(' · ');
   if(msg)toast(msg,12000);
 }
-function alApply(next){
-  const prev=S.alarm;let changed=false;
-  for(const r of RAIONS)if(((prev[r.id]||{}).lvl|0)!==next[r.id].lvl)changed=true;
-  announce(prev,next);S.alarm=next;
-  const stale=Date.now()-(S.alarmMeta.t||0)>120000;      // без змін пишемо лише раз на 2 хв — як «пульс»
-  if(changed||!S.alarmMeta.on||stale){S.alarmMeta={on:true,t:Date.now()};tick();commit();}
-}
 async function alPoll(){
   if(!ADMIN||!AL.on||AL.busy)return;
-  if(!AL.PROXY&&!AL.tok){alStatus();return;}
-  AL.busy=true;
+  AL.busy=true;const epoch=AL.epoch;
+  const ac=new AbortController();AL.controller=ac;
+  const timeout=setTimeout(()=>ac.abort(),12000);
   try{
-    const url=AL.PROXY||(AL.URL+'?token='+encodeURIComponent(AL.tok));
-    const ac=new AbortController(),to=setTimeout(()=>ac.abort(),12000);
-    let r;try{r=await fetch(url,{signal:ac.signal,cache:'no-store'});}finally{clearTimeout(to);}
-    if(r.status===401)throw new Error('токен не підійшов (401)');
-    if(r.status===403)throw new Error('доступ заборонено (403)');
-    if(r.status===429)throw new Error('забагато запитів (429)');
-    if(!r.ok)throw new Error('помилка сервера '+r.status);
-    const j=await r.json();
-    if(!j||!Array.isArray(j.alerts))throw new Error('несподівана відповідь сервера');
-    alApply(alParse(j));
-    AL.err='';AL.ok=Date.now();
+    const response=await fetch(AL.URL,{signal:ac.signal,cache:'no-store'});
+    if(!response.ok)throw new Error(response.status===429?'ліміт запитів — повторимо пізніше':'сервіс відповів '+response.status);
+    const parsed=alParse(await response.json());
+    if(epoch!==AL.epoch||!ADMIN||!AL.on)return;
+    announce(S.alarm,parsed.levels);S.alarm=parsed.levels;
+    S.alarmMeta={on:true,t:parsed.timestamp,source:'tryvoha',error:''};
+    AL.ok=Date.now();AL.err='';tick();commit();
   }catch(e){
-    AL.err=e.name==='AbortError'?'сервер довго не відповідає':e.name==='TypeError'?'немає зв\'язку або браузер заблокував запит (CORS) — деталі в консолі':e.message;
-    console.warn('alerts.in.ua:',e);
+    if(epoch!==AL.epoch||!ADMIN||!AL.on)return;
+    AL.err=e.name==='AbortError'?'сервіс не відповів за 12 секунд':e.name==='TypeError'?'не вдалося з’єднатися з сервісом':e.message;
+    // An error is never an all-clear: retain the last successfully received levels.
+    S.alarmMeta={...S.alarmMeta,on:true,error:AL.err};tick();commit();
+  }finally{
+    clearTimeout(timeout);
+    if(epoch===AL.epoch){AL.busy=false;AL.controller=null;alStatus();}
   }
-  AL.busy=false;alStatus();
 }
 function alStatus(){
-  const el=$('#alSt');if(!el)return;
-  el.textContent=!AL.on?'Вимкнено — рівні ставите вручну або вони йдуть від цілей.'
-    :(!AL.PROXY&&!AL.tok)?'Вставте токен і натисніть «Зберегти».'
-    :AL.err?'⚠ '+AL.err+(AL.ok?' · востаннє вдало о '+hms(AL.ok):'')
-    :AL.ok?'✓ Оновлено о '+hms(AL.ok)+' · перевірка кожні '+AL.EVERY/1000+' с'
-    :'Перевіряю…';
+  $('#alSt').textContent=!AL.on?'Автотривогу вимкнено.'
+    :!ADMIN?'Оновлення надходять від адміністратора.'
+    :AL.err?'⚠ Дані недоступні: '+AL.err+'. Збережено останній стан; це не відбій.'
+    :AL.ok?'✓ Оновлено о '+hms(AL.ok)+' · перевірка кожні 30 с · без API-ключа'
+    :'Отримую стан тривог…';
 }
 function alSync(){
+  AL.epoch++;if(AL.controller)AL.controller.abort();AL.controller=null;AL.busy=false;
   clearInterval(AL.timer);AL.timer=null;
   if(ADMIN&&AL.on){alPoll();AL.timer=setInterval(alPoll,AL.EVERY);}
   alStatus();
 }
-function alOff(){                                    // вимкнули автотривогу — знімаємо все, що вона виставила
-  if(!ADMIN)return;
-  S.alarm=Object.fromEntries(RAIONS.map(r=>[r.id,{lvl:0,since:null}]));S.alarmMeta={on:false,t:0};
-  tick();commit();
-}
-$('#alOn').checked=AL.on;$('#alTok').value=AL.tok;$('#alTokRow').hidden=!!AL.PROXY;
+$('#alOn').checked=AL.on;
 $('#alOn').addEventListener('change',e=>{
   if(!ADMIN)return;
-  AL.on=e.target.checked;try{localStorage.setItem('khm-al-on',AL.on?'1':'0');}catch(_){}
-  AL.ok=null;AL.err='';
-  if(!AL.on)alOff();
+  AL.on=e.target.checked;try{localStorage.setItem('khm-tryvoha-on',AL.on?'1':'0');}catch(_){}
+  AL.err='';AL.ok=null;
+  if(!AL.on){
+    S.alarmMeta={...S.alarmMeta,on:false,error:''};tick();commit();
+    toast('Автооновлення вимкнено. Останні отримані рівні збережено.');
+  }
   alSync();
 });
-$('#alSave').addEventListener('click',()=>{
-  AL.tok=$('#alTok').value.trim().replace(/^Bearer\s+/i,'');$('#alTok').value=AL.tok;
-  try{localStorage.setItem('khm-al-tok',AL.tok);}catch(_){}
-  AL.ok=null;AL.err='';alSync();toast('Токен збережено');
-});
-$('#alTok').addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();$('#alSave').click();}});
+map.attributionControl.addAttribution('Тривоги: <a href="https://tryvoha.online/" target="_blank" rel="noopener">Tryvoha.online</a>');
 alSync();
+
 
 const NET={ping:null,on:null,adm:null};
 function renderStatus(){
@@ -1701,6 +1749,124 @@ function frame(now){
 }
 requestAnimationFrame(frame);
 window.addEventListener('resize',()=>{map.invalidateSize();});
+/* Mobile target sheet: the same live controls, outside Leaflet's moving panes. */
+function closeTargetSheet(){mobileTargetId=null;$('#target-sheet').hidden=true;$('#sheet-content').replaceChildren();document.body.classList.remove('sheet-open');}
+function showTargetSheet(t,rt){
+  if(innerWidth>720)return;
+  closeTargetSheet();mobileTargetId=t.id;
+  let details=rt.pop.querySelector('.mobile-details');
+  if(!details){
+    const dl=rt.pop.querySelector('dl');details=document.createElement('details');details.className='mobile-details';
+    const summary=document.createElement('summary');summary.textContent='Дані польоту та маршрут';details.appendChild(summary);dl.before(details);details.appendChild(dl);
+    const status=document.createElement('p');status.className='mobile-summary';rt.pop.querySelector('.quick-actions').before(status);
+  }
+  details.open=false;
+  $('#sheet-content').appendChild(rt.pop);$('#target-sheet').hidden=false;document.body.classList.add('sheet-open');
+  rt.marker.closePopup();fillPopup(t,rt.pop);$('#sheet-content').scrollTop=0;$('#sheet-close').focus();
+}
+$('#sheet-close').addEventListener('click',closeTargetSheet);
+addEventListener('resize',()=>{if(innerWidth>720)closeTargetSheet();});
+if(innerWidth<=720){$('#panel').classList.add('collapsed');$('#collapse').textContent='▴';}
+
+/* Local 512 x 512 PNG. The schematic is drawn from bundled boundaries; no screenshot service or map-tile CORS required. */
+const SHARE={blob:null,url:null,token:0,trigger:null};
+function fitText(ctx,text,x,y,width){let out=String(text||'');while(out.length&&ctx.measureText(out).width>width)out=out.slice(0,-1);if(out!==String(text||''))out=out.slice(0,-1)+'…';ctx.fillText(out,x,y);}
+function wrapText(ctx,text,x,y,width,lines=2,lineHeight=19){
+ const words=String(text||'').split(/\s+/);let line='',row=0;
+ while(words.length){const word=words.shift(),next=line?line+' '+word:word;
+  if(ctx.measureText(next).width>width&&line){ctx.fillText(line,x,y+row*lineHeight);row++;line=word;if(row===lines-1){fitText(ctx,[line,...words].join(' '),x,y+row*lineHeight,width);return;}}
+  else line=next;
+ }if(row<lines)fitText(ctx,line,x,y+row*lineHeight,width);
+}
+async function renderShareCard(t){
+ const canvas=document.createElement('canvas');canvas.width=canvas.height=512;
+ const ctx=canvas.getContext('2d'),color=tcol(t),now=new Date();
+ ctx.fillStyle='#0c1420';ctx.fillRect(0,0,512,512);
+ ctx.fillStyle=color;ctx.fillRect(0,0,512,4);
+ ctx.font='700 11px system-ui';ctx.fillStyle='#99aec5';ctx.fillText('ХМЕЛЬНИЧЧИНА · КАРТА ПОВІТРЯНИХ ЗАГРОЗ',24,29);
+ ctx.font='800 24px system-ui';ctx.fillStyle='#f3f7fc';fitText(ctx,nameOf(t),24,61,390);
+ ctx.font='600 13px system-ui';ctx.fillStyle='#99aec5';ctx.fillText('#'+t.id,454,58);
+ ctx.font='700 14px system-ui';ctx.fillStyle=color;ctx.fillText(ST[lookOf(t)].name,24,87);
+ const time=now.toLocaleString('uk-UA',{timeZone:'Europe/Kyiv',day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'});
+ ctx.font='500 12px system-ui';ctx.fillStyle='#aabdd1';ctx.textAlign='right';ctx.fillText(time+' · Київ',488,87);ctx.textAlign='left';
+ const box={x:24,y:108,w:464,h:210},zoom=9,center=map.project([t.lat,t.lon],zoom);
+ const project=(lat,lon)=>{const p=map.project([lat,lon],zoom);return [box.x+box.w/2+p.x-center.x,box.y+box.h/2+p.y-center.y];};
+ ctx.save();ctx.beginPath();ctx.rect(box.x,box.y,box.w,box.h);ctx.clip();ctx.fillStyle='#142333';ctx.fillRect(box.x,box.y,box.w,box.h);
+ ctx.strokeStyle='#ffffff08';ctx.lineWidth=1;
+ for(let x=box.x;x<box.x+box.w;x+=32){ctx.beginPath();ctx.moveTo(x,box.y);ctx.lineTo(x,box.y+box.h);ctx.stroke();}
+ for(let y=box.y;y<box.y+box.h;y+=32){ctx.beginPath();ctx.moveTo(box.x,y);ctx.lineTo(box.x+box.w,y);ctx.stroke();}
+ for(const f of GEO.features){ctx.beginPath();for(const poly of polysOf(f.geometry))for(const ring of poly){ring.forEach((p,i)=>{const q=project(p[1],p[0]);i?ctx.lineTo(...q):ctx.moveTo(...q);});ctx.closePath();}ctx.fillStyle='#1e3546';ctx.fill('evenodd');ctx.strokeStyle='#658196';ctx.lineWidth=1;ctx.stroke();}
+ const line=courseLL(t);ctx.beginPath();line.forEach((p,i)=>{const q=project(p[0],p[1]);i?ctx.lineTo(...q):ctx.moveTo(...q);});ctx.strokeStyle=color;ctx.lineWidth=2;ctx.setLineDash([6,6]);ctx.stroke();ctx.setLineDash([]);
+ const occupied=[];ctx.font='600 11px system-ui';
+ for(const town of [...TOWNS].sort((a,b)=>a[3]-b[3])){
+  const [x,y]=project(town[1],town[2]);if(x<box.x+10||x>box.x+box.w-20||y<box.y+34||y>box.y+box.h-40)continue;
+  const w=ctx.measureText(town[0]).width;
+  if(Math.hypot(x-256,y-213)<40||x+w+10>488||occupied.some(r=>x<r.x+r.w&&x+w>r.x&&Math.abs(y-r.y)<15))continue;
+  occupied.push({x,y,w:w+12});ctx.fillStyle='#9eb2c6';ctx.beginPath();ctx.arc(x,y,2,0,Math.PI*2);ctx.fill();ctx.fillStyle='#d5e0ec';ctx.fillText(town[0],x+6,y+4);
+ }
+ ctx.fillStyle='#0c1420dc';ctx.fillRect(32,116,230,23);ctx.font='600 10px system-ui';ctx.fillStyle='#b8c9d9';ctx.fillText('СХЕМА · РОЗРАХУНКОВА ПОЗИЦІЯ',40,132);
+ ctx.fillStyle='#d9e5f1';ctx.fillText('↑ Пн',451,132);
+ ctx.fillStyle='#0c1420dc';ctx.fillRect(32,286,240,24);ctx.fillStyle='#b8c9d9';ctx.font='11px system-ui';ctx.fillText(t.lat.toFixed(4)+', '+t.lon.toFixed(4)+' · розрахунок',40,302);
+ ctx.beginPath();ctx.arc(256,213,23,0,Math.PI*2);ctx.fillStyle=color+'25';ctx.fill();ctx.strokeStyle=color;ctx.lineWidth=1.5;ctx.stroke();
+ const svg=SVG[t.type](color).replace('<svg ','<svg xmlns="http://www.w3.org/2000/svg" ');
+ const imageUrl=URL.createObjectURL(new Blob([svg],{type:'image/svg+xml'}));
+ try{const img=new Image();await new Promise((resolve,reject)=>{img.onload=resolve;img.onerror=reject;img.src=imageUrl;});ctx.save();ctx.translate(256,213);ctx.rotate(t.hdg*Math.PI/180);ctx.drawImage(img,-18,-18,36,36);ctx.restore();}finally{URL.revokeObjectURL(imageUrl);}
+ ctx.restore();
+ ctx.font='700 10px system-ui';ctx.fillStyle='#8fa5bc';ctx.fillText('КУРС ЗА ВНЕСЕНИМИ ДАНИМИ',24,337);
+ ctx.font='600 14px system-ui';ctx.fillStyle='#e5edf7';wrapText(ctx,routeTextBase(t)||'Курс не задано',24,356,464,2,18);
+ ctx.font='700 19px system-ui';ctx.fillStyle=color;ctx.fillText((t.stopped?'0':t.speed)+' км/год',24,405);
+ ctx.font='12px system-ui';ctx.fillStyle='#9fb2c8';ctx.fillText('Задана швидкість',24,423);
+ ctx.font='700 19px system-ui';ctx.fillStyle='#e5edf7';ctx.fillText('×'+mOf(t),285,405);ctx.font='12px system-ui';ctx.fillStyle='#9fb2c8';ctx.fillText('Множник часу',285,423);
+ if(t.note){ctx.font='12px system-ui';ctx.fillStyle='#d1ddea';fitText(ctx,t.note,24,445,464);}
+ ctx.strokeStyle='#2b3b4f';ctx.beginPath();ctx.moveTo(24,456);ctx.lineTo(488,456);ctx.stroke();
+ ctx.font='700 12px system-ui';ctx.fillStyle='#ffcc80';ctx.fillText('НЕОФІЦІЙНО · ПОЗИЦІЯ МОЖЕ БУТИ НЕТОЧНОЮ',24,477);
+ ctx.font='11px system-ui';ctx.fillStyle='#a7b8ca';ctx.fillText('Дотримуйтеся офіційних сповіщень про тривогу.',24,496);
+ return new Promise((resolve,reject)=>canvas.toBlob(b=>b?resolve(b):reject(new Error('Не вдалося створити PNG')),'image/png'));
+}
+function clipboardImage(blobPromise){
+ if(!window.isSecureContext||!navigator.clipboard?.write||!window.ClipboardItem)return Promise.reject(new Error('Копіювання зображень недоступне в цьому браузері'));
+ return navigator.clipboard.write([new ClipboardItem({'image/png':blobPromise})]);
+}
+function closeShare(){SHARE.token++;$('#share-dialog').hidden=true;document.body.classList.remove('dialog-open');if(SHARE.url)URL.revokeObjectURL(SHARE.url);SHARE.url=null;SHARE.blob=null;$('#share-preview').removeAttribute('src');if(SHARE.trigger?.isConnected)SHARE.trigger.focus();}
+async function captureTarget(id){
+ const target=live().find(t=>t.id===id);if(!target){toast('Ціль уже недоступна');return;}
+ catchUp(target);const t={...target,wps:target.wps.map(w=>({...w}))};
+ const token=++SHARE.token;SHARE.trigger=document.activeElement;SHARE.blob=null;
+ $('#share-dialog').hidden=false;document.body.classList.add('dialog-open');$('#share-preview').hidden=true;
+ $('#share-message').textContent='Створюю картку 512 × 512…';$('#share-copy').disabled=$('#share-save').disabled=true;$('#share-close').focus();
+ const blobPromise=renderShareCard(t);
+ // Start clipboard access during the click to retain activation on mobile Safari.
+ const copied=clipboardImage(blobPromise).then(()=>true,()=>false);
+ try{
+  const blob=await blobPromise,ok=await copied;if(token!==SHARE.token)return;
+  SHARE.blob=blob;if(SHARE.url)URL.revokeObjectURL(SHARE.url);SHARE.url=URL.createObjectURL(blob);
+  $('#share-preview').src=SHARE.url;$('#share-preview').hidden=false;$('#share-copy').disabled=$('#share-save').disabled=false;
+  $('#share-message').textContent=ok?'Скопійовано! Вставте зображення в Telegram.':'Картка готова. Натисніть «Копіювати» або завантажте PNG, якщо браузер не дозволяє копіювання.';
+ }catch(e){if(token===SHARE.token)$('#share-message').textContent='Не вдалося створити картку. Спробуйте ще раз.';}
+}
+$('#share-close').addEventListener('click',closeShare);
+$('#share-copy').addEventListener('click',()=>{if(!SHARE.blob)return;clipboardImage(Promise.resolve(SHARE.blob)).then(()=>$('#share-message').textContent='Скопійовано! Можна вставляти в Telegram.',()=>$('#share-message').textContent='Браузер заборонив копіювання. Натисніть «Завантажити PNG» й прикріпіть файл.');});
+$('#share-save').addEventListener('click',()=>{if(!SHARE.url)return;const a=document.createElement('a');a.href=SHARE.url;a.download='khmelnytskyi-map-512.png';a.click();});
+/* Remember only an explicit checkbox choice, never a dismissal alone. */
+let noticeDismissed=false;try{noticeDismissed=localStorage.getItem('khm-notice-v1')==='1';}catch(_){}
+if(!noticeDismissed){$('#welcome').hidden=false;document.body.classList.add('dialog-open');$('#welcome-go').focus();}
+$('#welcome-go').addEventListener('click',()=>{
+ if($('#welcome-remember').checked)try{localStorage.setItem('khm-notice-v1','1');}catch(_){}
+ $('#welcome').hidden=true;document.body.classList.remove('dialog-open');$('#collapse').focus();
+});
+// Keep keyboard focus inside the entry warning / export dialog.
+document.addEventListener('keydown',e=>{
+ const dialog=!$('#welcome').hidden?$('#welcome'):!$('#share-dialog').hidden?$('#share-dialog'):null;
+ if(!dialog)return;
+ if(e.key==='Escape'){e.preventDefault();e.stopImmediatePropagation();if(dialog.id==='share-dialog')closeShare();return;}
+ if(e.key==='Tab'){
+  const controls=[...dialog.querySelectorAll('button:not(:disabled),input,a[href]')].filter(el=>el.getClientRects().length);
+  const first=controls[0],last=controls.at(-1);
+  if(e.shiftKey&&document.activeElement===first){e.preventDefault();last.focus();}
+  else if(!e.shiftKey&&document.activeElement===last){e.preventDefault();first.focus();}
+ }
+},true);
+
 window.SIM={setMult,setCount,splitOne,inUkraine,lookOf,courseLL,S,map,createTarget,removeTarget,findTown,parseRoute,stepT,raionAt,inOblast,openModal,applyData,setAdmin,live,setStopped,changeType,setNote};
 })();
 </script>
