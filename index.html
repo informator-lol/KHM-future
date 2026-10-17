@@ -462,6 +462,14 @@ body.picking #about-link,body.sheet-open #about-link{display:none}
 @media(min-width:721px){body.is-admin #map-hud{left:360px}}
 @media(max-width:720px){#map-hud{top:10px;left:10px;right:64px;align-items:flex-start;gap:6px}#map-hud #badge{font-size:9px;text-align:left}#map-hud #offline{font-size:11px;padding:8px 10px}#map-hud #status{justify-content:flex-start}#map-hud #clock{padding:5px 8px}}
 #sugg{display:block;max-height:330px;overflow-y:auto;scrollbar-width:thin}.search-group{border:1px solid #34475e;border-radius:12px;padding:10px;margin:8px 0;background:#101b29}.search-group>strong{display:block;font-size:12px;margin:0 0 8px;color:#bacce2}#sugg .place-option{width:100%;text-align:left;border-radius:9px;padding:10px 12px;margin-bottom:6px;display:block}#sugg .place-option b{display:block;font-size:13px}#sugg .place-option small{display:block;color:#a8bbd1;font-size:11px;line-height:1.5;margin-top:4px}#chips button.chip{white-space:normal;text-align:left;line-height:1.5;max-width:100%;cursor:pointer}#chips button.chip:hover{border-color:#6ee7a0}
+#comments-toggle{position:absolute;z-index:1100;right:12px;bottom:110px;border:1px solid #3c536d;border-radius:12px;background:#17283b;color:#d5eaff;padding:11px 14px;min-height:44px;font-weight:700;box-shadow:0 6px 22px #0005}
+#comments-toggle:hover{background:#25415e}#comments-unread{display:inline-block;background:#ff9a3d;color:#211405;border-radius:999px;font-size:11px;padding:1px 6px;margin-left:5px}
+#comments-panel{position:fixed;z-index:1900;right:12px;top:12px;bottom:12px;width:min(370px,calc(100vw - 24px));display:flex;flex-direction:column;border:1px solid #3a506b;border-radius:20px;background:#111d2bf7;box-shadow:0 20px 60px #0008;overflow:hidden;backdrop-filter:blur(12px)}
+#comments-panel>header{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:16px;border-bottom:1px solid #2e4056;background:#1a2a3e}#comments-title{font-size:18px;letter-spacing:0;text-transform:none;color:#eef4fc;margin:0}#comments-panel header p{margin:4px 0 0;font-size:11px;color:#a9bfd7}
+#comments-feed{flex:1;min-height:0;overflow:auto;overscroll-behavior:contain;padding:14px;scrollbar-width:thin;scrollbar-color:#43536a transparent}.comment-post{background:#18273a;border:1px solid #30455f;border-radius:14px;padding:14px;margin-bottom:10px}.comment-post header{display:flex;justify-content:space-between;align-items:center;gap:10px}.comment-post time{font-size:11px;color:#9cb8d5}.comment-post p{white-space:pre-wrap;overflow-wrap:anywhere;line-height:1.65;font-size:13px;color:#edf3fc;margin:10px 0 0}.comment-post button{font-size:11px;padding:5px 8px;color:#ffc1ba;background:transparent;border:1px solid #685054;border-radius:7px}
+#comments-form{padding:14px;border-top:1px solid #30455f;background:#142235}#comments-form label{display:block;font-size:12px;font-weight:700;color:#bfd4ed;margin-bottom:8px}#comments-text{width:100%;resize:vertical;min-height:96px;max-height:200px;background:#0e1927;color:#edf3fc;border:1px solid #3b516b;border-radius:10px;padding:11px;font:14px/1.6 system-ui}#comments-text:focus{outline:2px solid #7bcfff;outline-offset:1px}.comments-form-footer{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:9px}.comments-form-footer .primary{width:auto;font-size:12px}.comments-form-footer small{color:#9db4cf;font-size:11px}#comments-message{margin:0;padding:0 14px 12px;font-size:12px;line-height:1.5;color:#b9cee7}#comments-message:empty{display:none}
+body:not(.is-admin) #comments-form,body:not(.is-admin) .comment-post button{display:none}body.comments-open #comments-toggle{visibility:hidden}body.picking #comments-toggle{display:none}body.dialog-open #comments-panel{pointer-events:none}
+@media(max-width:720px){#comments-toggle{top:192px;bottom:auto;right:10px;padding:10px;font-size:12px}#comments-panel{top:auto;bottom:max(8px,env(safe-area-inset-bottom));left:8px;right:8px;width:auto;max-height:82dvh;height:650px;border-radius:18px}#comments-text{font-size:16px;min-height:84px;max-height:130px}#comments-form{padding:12px}body.comments-open #panel,body.comments-open #target-sheet{visibility:hidden}.comment-post button{min-height:36px}}
 </style>
 <link rel="icon" type="image/png" href="./favicon.png?v=1">
 <link rel="apple-touch-icon" href="./favicon.png?v=1">
@@ -486,6 +494,19 @@ body.picking #about-link,body.sheet-open #about-link{display:none}
 </div>
 
 
+<button type="button" id="comments-toggle" aria-expanded="false" aria-controls="comments-panel">☰ Коментарі <span id="comments-unread" hidden></span></button>
+<aside id="comments-panel" hidden aria-labelledby="comments-title">
+ <header><div><h2 id="comments-title">Коментарі</h2><p>Оновлення від адміністрації</p></div><button type="button" id="comments-close" class="ib" aria-label="Закрити коментарі">✕</button></header>
+ <div id="comments-feed" aria-label="Опубліковані оновлення"></div>
+ <form id="comments-form">
+  <label for="comments-text">Нове оновлення</label>
+  <textarea id="comments-text" maxlength="2000" rows="5" placeholder="Оновлення:
+1. Уточнення щодо першої мітки.
+2. Інформація ще перевіряється."></textarea>
+  <div class="comments-form-footer"><small id="comments-length">0 / 2000</small><button type="submit" class="primary" id="comments-send" disabled>Опублікувати</button></div>
+ </form>
+ <p id="comments-message" role="status"></p>
+</aside>
 <div id="map"></div>
 <a id="about-link" href="about.html">ⓘ Про сайт</a>
 <div id="map-hud" aria-label="Стан карти">
@@ -931,7 +952,7 @@ function storeLocal(d){
 function sendPending(){
   if(!ADMIN||!DOC||!remoteReady||!pendingSave)return;
   const sent=pendingSave;
-  DOC.set(sent).then(()=>{
+  DOC.set(sent,{merge:true}).then(()=>{
     if(pendingSave===sent){pendingSave=null;try{localStorage.removeItem(KEY+'-pending');}catch(e){}}
   }).catch(e=>toast('Сервер не зберіг зміни. Локальна копія залишилась: '+(e.code||e.message),10000));
 }
@@ -1653,7 +1674,7 @@ function applyData(d){
 function setAdmin(v){
   if(ADMIN===v)return;
   ADMIN=v;document.body.classList.toggle('is-admin',v);if(!v){closeModal();closeTargetSheet();if(captureMode)setCaptureMode(false);}
-  map.invalidateSize();tick();checkPresence();alSync();flushSpeedMigration();
+  map.invalidateSize();tick();checkPresence();alSync();flushSpeedMigration();renderComments();
 }
 /* Автотривога: public Tryvoha.online API, no token. */
 const AL={URL:'https://tryvoha.online/api/v1/alerts',EVERY:30000,on:true,timer:null,busy:false,err:'',ok:null,controller:null,epoch:0};
@@ -1761,6 +1782,64 @@ async function measurePing(){
 if(!USE_FB){NET.on=1;NET.adm=1;}
 renderStatus();measurePing();setInterval(measurePing,10000);
 addEventListener('online',measurePing);addEventListener('offline',measurePing);
+
+/* Public update feed; only administrators receive publishing controls. */
+const COMMENTS_KEY=KEY+'-comments';let commentsData={},commentsBusy=false,commentsSeen=0;
+try{commentsData=JSON.parse(localStorage.getItem(COMMENTS_KEY)||'{}')||{};commentsSeen=Number(localStorage.getItem(COMMENTS_KEY+'-seen'))||0;}catch(_){}
+function cleanComments(data){
+ const out={};if(!data||typeof data!=='object')return out;
+ for(const [id,p] of Object.entries(data))if(/^[a-zA-Z0-9_-]{1,100}$/.test(id)&&p&&typeof p.text==='string'&&p.text.trim()&&Number.isFinite(p.at)&&p.at>=0&&p.at<=8640000000000000)out[id]={text:p.text.slice(0,2000),at:p.at};
+ return out;
+}
+function sortedComments(){return Object.entries(commentsData).sort((a,b)=>b[1].at-a[1].at||b[0].localeCompare(a[0]));}
+function acceptComments(data){
+ const next=cleanComments(data);if(JSON.stringify(next)===JSON.stringify(commentsData))return;
+ commentsData=next;try{localStorage.setItem(COMMENTS_KEY,JSON.stringify(commentsData));}catch(_){}renderComments();
+}
+function markCommentsSeen(){commentsSeen=Math.max(commentsSeen,...Object.values(commentsData).map(p=>p.at));try{localStorage.setItem(COMMENTS_KEY+'-seen',String(commentsSeen));}catch(_){}}
+function renderComments(){
+ if(!$('#comments-panel').hidden)markCommentsSeen();
+ const rows=sortedComments(),unread=rows.filter(([,p])=>p.at>commentsSeen).length;
+ $('#comments-unread').textContent=unread;$('#comments-unread').hidden=!unread;
+ const feed=$('#comments-feed');feed.replaceChildren();
+ if(!rows.length){const empty=document.createElement('p');empty.className='empty';empty.textContent='Оновлень поки немає. Повідомлення адміністрації з’являться тут.';feed.append(empty);}
+ for(const [id,p] of rows){
+  const card=document.createElement('article');card.className='comment-post';const header=document.createElement('header'),time=document.createElement('time');
+  time.dateTime=new Date(p.at).toISOString();time.textContent=new Date(p.at).toLocaleString('uk-UA',{timeZone:'Europe/Kyiv',day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'})+' · Адміністрація';header.append(time);
+  if(ADMIN){const remove=document.createElement('button');remove.type='button';remove.textContent='Видалити';remove.disabled=commentsBusy;remove.addEventListener('click',()=>deleteComment(id));header.append(remove);}
+  const text=document.createElement('p');text.textContent=p.text;card.append(header,text);feed.append(card);
+ }
+ updateCommentForm();
+}
+function updateCommentForm(){const value=$('#comments-text').value;$('#comments-length').textContent=value.length+' / 2000';$('#comments-send').disabled=commentsBusy||!ADMIN||!value.trim();}
+function toggleComments(open){$('#comments-panel').hidden=!open;$('#comments-toggle').setAttribute('aria-expanded',String(open));document.body.classList.toggle('comments-open',open);if(open){renderComments();$('#comments-close').focus();}else $('#comments-toggle').focus();}
+async function saveCommentChange(id,post){
+ if(USE_FB){
+  if(!DOC||!remoteReady)throw new Error('Немає зв’язку з сервером. Спробуйте після підключення.');
+  await DOC.set({announcements:{[id]:post||firebase.firestore.FieldValue.delete()}},{merge:true});
+ }
+ const next={...commentsData};if(post)next[id]=post;else delete next[id];acceptComments(next);
+}
+async function deleteComment(id){
+ if(!ADMIN||commentsBusy)return;commentsBusy=true;renderComments();$('#comments-message').textContent='Видаляю…';
+ try{await saveCommentChange(id,null);$('#comments-message').textContent='Оновлення видалено.';}catch(e){$('#comments-message').textContent='Не вдалося видалити: '+e.message;}
+ finally{commentsBusy=false;renderComments();}
+}
+$('#comments-toggle').addEventListener('click',()=>toggleComments($('#comments-panel').hidden));
+$('#comments-close').addEventListener('click',()=>toggleComments(false));
+$('#comments-text').addEventListener('input',updateCommentForm);
+$('#comments-form').addEventListener('submit',async e=>{
+ e.preventDefault();if(!ADMIN||commentsBusy)return;const text=$('#comments-text').value.trim();if(!text||text.length>2000)return;
+ if(Object.keys(commentsData).length>=100){$('#comments-message').textContent='Збережено 100 оновлень. Видаліть непотрібні перед публікацією нового.';return;}
+ const id=Date.now().toString(36)+'_'+Math.random().toString(36).slice(2,12),post={text,at:Date.now()};
+ commentsBusy=true;renderComments();$('#comments-message').textContent='Публікую…';
+ try{await saveCommentChange(id,post);if($('#comments-text').value.trim()===text)$('#comments-text').value='';$('#comments-message').textContent=USE_FB?'Опубліковано для відвідувачів.':'Збережено локально. Для публікації відвідувачам потрібен онлайн-режим.';}
+ catch(e){$('#comments-message').textContent='Не вдалося опублікувати: '+e.message;}
+ finally{commentsBusy=false;renderComments();}
+});
+document.addEventListener('keydown',e=>{if(e.key==='Escape'&&!$('#comments-panel').hidden&&$('#share-dialog').hidden&&$('#welcome').hidden){e.preventDefault();toggleComments(false);}});
+commentsData=cleanComments(commentsData);renderComments();
+
 function initFirebase(){
   firebase.initializeApp(FIREBASE_CONFIG);
   const auth=firebase.auth(),fs=firebase.firestore();
@@ -1769,7 +1848,8 @@ function initFirebase(){
   const OWNER=String(ADMIN_EMAIL||'').trim().toLowerCase();
   let me='',presMs=0,presLoaded=false,beatT=null,admUnsub=null,admList=[];
 
-  DOC.onSnapshot(snap=>{
+  DOC.onSnapshot({includeMetadataChanges:true},snap=>{
+    if(snap.exists)acceptComments(snap.data().announcements||{});
     if(snap.metadata.hasPendingWrites)return;    // власний запис, уже застосований
     remoteReady=true;
     if(pendingSave){sendPending();return;}
