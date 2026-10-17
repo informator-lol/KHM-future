@@ -382,6 +382,12 @@ body.dialog-open #panel,body.dialog-open #target-sheet{pointer-events:none}
  #toast{bottom:calc(80px + env(safe-area-inset-bottom));font-size:12px}
 }
 
+.tgt.capture-selected{outline:3px solid #70e8ff;outline-offset:9px;border-radius:50%;background:#70e8ff33;box-shadow:0 0 0 9px #70e8ff22}
+.tgt.capture-selected::after{content:'✓';position:absolute;left:-16px;top:-18px;width:22px;height:22px;border-radius:50%;background:#70e8ff;color:#071921;text-align:center;font:bold 16px/22px system-ui}
+body.capture-mode .tgt{cursor:pointer}
+body.capture-mode #panel #pbody>section:not(:first-child){display:none}
+body.capture-mode #panel{bottom:auto}
+@media(max-width:720px){body.capture-mode #panel{top:auto;bottom:8px}}
 </style>
 </head>
 <body>
@@ -421,8 +427,8 @@ body.dialog-open #panel,body.dialog-open #target-sheet{pointer-events:none}
     <section>
       <button type="button" class="primary" id="capture-many">▣ Зробити скріншот</button>
       <div id="capture-selection" hidden>
-        <p class="hint">Позначте цілі для одного зображення. Кожна матиме свій номер, карту та інформацію.</p>
-        <div id="capture-options"></div>
+        <p class="hint">Натискайте на шахеди на карті: повторне натискання знімає виділення. Потім натисніть «Створити PNG». Група вибирається цілком.</p>
+        
         <p id="capture-count" class="hint" role="status"></p>
         <div class="actions"><button type="button" class="ghost" id="capture-cancel">Скасувати</button><button type="button" class="primary" id="capture-create" disabled>Створити PNG</button></div>
       </div>
@@ -953,6 +959,7 @@ function labelRaion(r,since){
 
 /* ───────── цілі на карті ───────── */
 const RT=new Map();
+const captureIds=new Set();let captureMode=false;
 let mobileTargetId=null;
 function buildPopup(t){
   const T=TYPES[t.type],el=document.createElement('div');el.className='pinfo';
@@ -1018,6 +1025,7 @@ function fillPopup(t,el){
 function syncLook(t,rt){
   const col=tcol(t),pred=lookOf(t)!=='confirmed',el=rt.marker.getElement();
   const untracked=stOf(t)==='untracked';
+  el.classList.toggle('capture-selected',captureMode&&captureIds.has(t.id));
   el.classList.toggle('is-untracked',untracked);
   el.classList.toggle('is-pred',pred);
   const badge=el.querySelector('.qm');if(badge.dataset.status!==stOf(t)){badge.dataset.status=stOf(t);badge.innerHTML=untracked?RADAR_OFF:'?';badge.title=untracked?'Не фіксується':'';}
@@ -1044,7 +1052,8 @@ function addRuntime(t){
   const trail=L.polyline([],{color:col,weight:2.5,opacity:.3,interactive:false}).addTo(map);
   const pop=buildPopup(t);
   marker.bindPopup(pop,{className:'tpop',offset:[0,-8],autoPanPadding:[30,30]});
-  marker.on('popupopen',()=>{fillPopup(t,pop);if(innerWidth<=720)showTargetSheet(t,rt);else{const details=pop.querySelector('.mobile-details');if(details)details.open=true;}});
+  marker.on('click',()=>{if(captureMode&&ADMIN)toggleCapture(t.id);});
+  marker.on('popupopen',()=>{if(captureMode){marker.closePopup();return;}fillPopup(t,pop);if(innerWidth<=720)showTargetSheet(t,rt);else{const details=pop.querySelector('.mobile-details');if(details)details.open=true;}});
   const rt={marker,line,trail,tp:[],pop,rot:marker.getElement().querySelector('.rot'),noteEl:marker.getElement().querySelector('.tnote'),canDrag:false,dragging:false,note:''};
   RT.set(t.id,rt);
   marker.on('dragstart',()=>{rt.dragging=true;});
@@ -1180,6 +1189,7 @@ function syncMult(){[...mbox.children].forEach(b=>b.classList.toggle('on',+b.dat
 syncMult();
 
 function renderList(){
+  if(captureMode)updateCaptureCount();
   const box=$('#list');box.innerHTML='';$('#cnt').textContent=live().length;
   $('#clear').hidden=!live().length;
   if(!live().length){box.innerHTML='<p class="empty">Активних цілей немає</p>';return;}
@@ -1566,7 +1576,7 @@ function applyData(d){
 }
 function setAdmin(v){
   if(ADMIN===v)return;
-  ADMIN=v;document.body.classList.toggle('is-admin',v);if(!v){closeModal();closeTargetSheet();}
+  ADMIN=v;document.body.classList.toggle('is-admin',v);if(!v){closeModal();closeTargetSheet();if(captureMode)setCaptureMode(false);}
   map.invalidateSize();tick();checkPresence();alSync();flushSpeedMigration();
 }
 /* Автотривога: public Tryvoha.online API, no token. */
@@ -1785,7 +1795,7 @@ function frame(now){
     syncLook(t,rt);
     const mel=rt.marker.getElement();
     mel.classList.toggle('is-hold',!!t.hold);mel.classList.toggle('is-stopped',!!t.stopped);
-    const cd=ADMIN&&!!t.stopped;if(rt.canDrag!==cd){rt.canDrag=cd;if(cd)rt.marker.dragging.enable();else rt.marker.dragging.disable();}
+    const cd=ADMIN&&!!t.stopped&&!captureMode;if(rt.canDrag!==cd){rt.canDrag=cd;if(cd)rt.marker.dragging.enable();else rt.marker.dragging.disable();}
     const nn=t.note||'';if(rt.note!==nn){rt.note=nn;rt.noteEl.textContent=nn;}
     rt.rot.style.transform=`rotate(${t.hdg}deg)`;
     rt.line.setLatLngs(courseLL(t));
@@ -1839,13 +1849,20 @@ function shareTile(z,x,y){
  if(SHARE_TILES.size>48)SHARE_TILES.delete(SHARE_TILES.keys().next().value);
  return promise;
 }
+function shareIconSvg(t,color){
+ const svg=SVG[t.type](color);
+ if(cOf(t)===1)return svg.replace('<svg ','<svg xmlns="http://www.w3.org/2000/svg" ');
+ const points=formation(cOf(t)).pts,size=iconSize(t),half=size/2;
+ const icons=points.map(([x,y])=>svg.replace('<svg ', '<svg x="'+(half+x-6.5)+'" y="'+(half+y-6.5)+'" ').replace('width="34" height="34"','width="13" height="13"')).join('');
+ return '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 '+size+' '+size+'" width="144" height="144">'+icons+'</svg>';
+}
 async function renderShareCard(t){
  const canvas=document.createElement('canvas');canvas.width=canvas.height=1536;
  const ctx=canvas.getContext('2d'),color=tcol(t),now=new Date(),area=locationOf(t.lat,t.lon),near=nearestPlace(t);
  ctx.scale(3,3);ctx.imageSmoothingEnabled=true;ctx.imageSmoothingQuality='high';
- const iconSvg=SVG[t.type](color).replace('<svg ','<svg xmlns="http://www.w3.org/2000/svg" ').replace('width="34" height="34"','width="144" height="144"');
+ const iconSvg=shareIconSvg(t,color);
  const targetImage=new Image();await new Promise((resolve,reject)=>{targetImage.onload=resolve;targetImage.onerror=reject;targetImage.src='data:image/svg+xml;charset=utf-8,'+encodeURIComponent(iconSvg);});
- const next=t.wps[t.idx],box={x:24,y:116,w:464,h:166};
+ const next=t.wps[t.idx],box={x:24,y:128,w:464,h:154};
  const end=next&&distM(t.lat,t.lon,next.lat,next.lon)<150000?[next.lat,next.lon]:null;
  let zoom=11;
  if(end)while(zoom>7){const a=map.project([t.lat,t.lon],zoom),b=map.project(end,zoom);if(Math.abs(a.x-b.x)<box.w-100&&Math.abs(a.y-b.y)<box.h-65)break;zoom--;}
@@ -1867,9 +1884,9 @@ async function renderShareCard(t){
  ctx.textAlign='right';ctx.fillText(time,488,25);ctx.textAlign='left';
  ctx.save();ctx.shadowColor=color;ctx.shadowBlur=16;ctx.fillStyle='#111d29';ctx.strokeStyle=color+'b0';ctx.lineWidth=.8;ctx.beginPath();ctx.roundRect(24,37,44,44,13);ctx.fill();ctx.stroke();ctx.shadowBlur=7;ctx.drawImage(targetImage,31,44,30,30);ctx.restore();
  ctx.font='800 20px system-ui';ctx.fillStyle='#f3f7fc';fitText(ctx,nameOf(t),80,56,408);
- ctx.font='500 11px system-ui';ctx.fillStyle='#9daec1';ctx.fillText('Ціль #'+t.id,80,75);
+ ctx.font='500 11px system-ui';ctx.fillStyle='#9daec1';ctx.fillText((cOf(t)>1?'Група #':'Ціль #')+t.id+(cOf(t)>1?' · '+cOf(t)+' од.':''),80,75);
  ctx.font='700 12px system-ui';ctx.fillStyle=color;ctx.textAlign='right';ctx.fillText(ST[lookOf(t)].name+(stOf(t)==='predicted'?' · '+(t.prob||60)+'%':''),488,75);ctx.textAlign='left';
- ctx.font='600 12px system-ui';ctx.fillStyle='#d0deed';fitText(ctx,area.oblast,24,91,464);fitText(ctx,area.district,24,107,464);
+ ctx.font='600 12px system-ui';ctx.fillStyle='#d0deed';fitText(ctx,area.oblast,24,103,464);fitText(ctx,area.district,24,119,464);
  ctx.save();ctx.beginPath();ctx.rect(box.x,box.y,box.w,box.h);ctx.clip();
  // Use the same OSM imagery and dark filter as the live Leaflet map.
  const mapFilter=getComputedStyle(map.getPane('tilePane')).filter;
@@ -1884,6 +1901,9 @@ async function renderShareCard(t){
  }
  const [tx,ty]=project(t.lat,t.lon);ctx.beginPath();ctx.arc(tx,ty,20,0,Math.PI*2);ctx.fillStyle='#0c1420ed';ctx.fill();ctx.strokeStyle=color;ctx.lineWidth=2;ctx.stroke();
  ctx.save();ctx.translate(tx,ty);ctx.rotate(t.hdg*Math.PI/180);ctx.drawImage(targetImage,-16,-16,32,32);ctx.restore();
+ if(cOf(t)>1){ctx.font='800 11px system-ui';const count='×'+cOf(t),bw=ctx.measureText(count).width+10;
+  ctx.fillStyle=color;ctx.fillRect(tx+9,ty+10,bw,17);ctx.fillStyle='#0c1420';ctx.fillText(count,tx+14,ty+23);
+ }
  ctx.fillStyle='#0c1420d9';ctx.fillRect(355,box.y+box.h-18,133,18);ctx.fillStyle='#e9eef5';ctx.font='9px system-ui';ctx.textAlign='right';ctx.fillText('© OpenStreetMap contributors',482,box.y+box.h-6);ctx.textAlign='left';
  ctx.restore();
  const eta=t.stopped?'Зупинено':t.hold?'Невідомо':t.free?'Курс втрачено':fmtEta(remainM(t)/(t.speed/3.6*mOf(t)));
@@ -1908,28 +1928,37 @@ function clipboardImage(blobPromise){
  return navigator.clipboard.write([new ClipboardItem({'image/png':blobPromise})]);
 }
 function closeShare(){SHARE.token++;$('#share-dialog').hidden=true;document.body.classList.remove('dialog-open');if(SHARE.url)URL.revokeObjectURL(SHARE.url);SHARE.url=null;SHARE.blob=null;$('#share-preview').removeAttribute('src');if(SHARE.trigger?.isConnected)SHARE.trigger.focus();}
-const captureIds=new Set();
 function updateCaptureCount(){
- $('#capture-count').textContent='Вибрано цілей: '+captureIds.size;
- $('#capture-create').disabled=!captureIds.size;
-}
-function renderCaptureOptions(){
- const container=$('#capture-options');container.replaceChildren();
- const targets=live(),available=new Set(targets.map(t=>t.id));
+ const current=live(),available=new Set(current.map(t=>t.id));
  for(const id of captureIds)if(!available.has(id))captureIds.delete(id);
- for(const t of targets){
-  const label=document.createElement('label');label.className='chk';
-  const input=document.createElement('input');input.type='checkbox';input.checked=captureIds.has(t.id);
-  input.addEventListener('change',()=>{input.checked?captureIds.add(t.id):captureIds.delete(t.id);updateCaptureCount();});
-  const text=document.createElement('span');text.textContent=nameOf(t)+' #'+t.id+' · '+(t.wps[t.idx]?.name||'Курс не задано');
-  label.append(input,text);container.append(label);
+ const units=current.filter(t=>captureIds.has(t.id)).reduce((sum,t)=>sum+cOf(t),0);
+ $('#capture-count').textContent='Вибрано міток: '+captureIds.size+' · одиниць: '+units;
+ $('#capture-create').disabled=!captureIds.size;
+ for(const [id,rt] of RT)rt.marker.getElement()?.classList.toggle('capture-selected',captureMode&&captureIds.has(id));
+}
+function renderCaptureOptions(){updateCaptureCount();}
+function toggleCapture(id){
+ if(!captureMode||!ADMIN)return;
+ captureIds.has(id)?captureIds.delete(id):captureIds.add(id);updateCaptureCount();
+}
+function setCaptureMode(enabled){
+ captureMode=enabled;document.body.classList.toggle('capture-mode',enabled);
+ $('#capture-selection').hidden=!enabled;
+ $('#capture-many').textContent=enabled?'▣ Виберіть шахеди на карті':'▣ Зробити скріншот';
+ if(enabled){map.closePopup();closeTargetSheet();$('#panel').classList.remove('collapsed');$('#collapse').textContent='▾';}
+ else captureIds.clear();
+ for(const t of live()){
+  const rt=RT.get(t.id);if(!rt)continue;
+  const popup=rt.marker.getPopup();if(popup)popup.options.autoPan=!enabled;
+  rt.canDrag=ADMIN&&!!t.stopped&&!enabled;
+  rt.canDrag?rt.marker.dragging.enable():rt.marker.dragging.disable();
  }
- if(!targets.length){const p=document.createElement('p');p.className='hint';p.textContent='Немає активних цілей. Спочатку додайте ціль.';container.append(p);}
  updateCaptureCount();
 }
-$('#capture-many').addEventListener('click',()=>{if(!ADMIN)return;$('#capture-selection').hidden=false;renderCaptureOptions();});
-$('#capture-cancel').addEventListener('click',()=>{$('#capture-selection').hidden=true;captureIds.clear();updateCaptureCount();});
+$('#capture-many').addEventListener('click',()=>{if(ADMIN)setCaptureMode(!captureMode);});
+$('#capture-cancel').addEventListener('click',()=>setCaptureMode(false));
 $('#capture-create').addEventListener('click',()=>{if(ADMIN)captureTargets([...captureIds]);});
+document.addEventListener('keydown',e=>{if(e.key==='Escape'&&captureMode&&$('#share-dialog').hidden)setCaptureMode(false);});
 async function renderShareCards(targets){
  if(targets.length===1)return renderShareCard(targets[0]);
  const columns=2,cell=768,labelHeight=48,rows=Math.ceil(targets.length/columns);
