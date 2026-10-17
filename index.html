@@ -788,9 +788,10 @@ const LV = [
 
 /* ───────── стан ───────── */
 const KEY='khm-sim-v3';
-let S={mult:10,auto:true,nextId:1,targets:[],raions:Object.fromEntries(RAIONS.map(r=>[r.id,{manual:0,since:null}])),
+let S={mult:1,auto:true,nextId:1,targets:[],raions:Object.fromEntries(RAIONS.map(r=>[r.id,{manual:0,since:null}])),
   alarm:Object.fromEntries(RAIONS.map(r=>[r.id,{lvl:0,since:null}])),alarmMeta:{on:false,t:0}};
 let ADMIN=!USE_FB;           // локальний режим: власник сторінки = адмін
+let stateReady=false,remoteReady=false,pendingSave=null,saveWarning=false;
 let DOC=null;                // документ Firestore (лише в режимі Firebase)
 document.body.classList.toggle('fb',USE_FB);
 document.body.classList.toggle('is-admin',ADMIN);
@@ -825,11 +826,25 @@ function serialize(){
   return JSON.parse(JSON.stringify({auto:S.auto,mult:S.mult,nextId:S.nextId,raions:S.raions,alarm:S.alarm,alarmMeta:S.alarmMeta,
     targets:live().map(t=>{const x={id:t.id,type:t.type,wps:t.wps,speed:t.speed,b:t.b,t0:t.t0,hold:!!t.hold,status:stOf(t),prob:t.prob||0,stopped:!!t.stopped,note:t.note||'',count:cOf(t),mult:mOf(t)};t.sig=sigOf(x);return x;})}));
 }
+function storeLocal(d){
+  try{localStorage.setItem(KEY,JSON.stringify(d));return true;}
+  catch(e){if(!saveWarning){saveWarning=true;toast('Браузер заборонив збереження. Дані можуть зникнути після F5.',12000);}return false;}
+}
+function sendPending(){
+  if(!ADMIN||!DOC||!remoteReady||!pendingSave)return;
+  const sent=pendingSave;
+  DOC.set(sent).then(()=>{
+    if(pendingSave===sent){pendingSave=null;try{localStorage.removeItem(KEY+'-pending');}catch(e){}}
+  }).catch(e=>toast('Сервер не зберіг зміни. Локальна копія залишилась: '+(e.code||e.message),10000));
+}
 function commit(){
-  if(!ADMIN)return;
-  const d=serialize();
-  if(USE_FB){if(DOC)DOC.set(d).catch(e=>toast('Не вдалося зберегти: '+(e.code||e.message)));}
-  else{try{localStorage.setItem(KEY,JSON.stringify(d));}catch(e){}}
+  if(!ADMIN||!stateReady)return;
+  const d=serialize();storeLocal(d);
+  if(USE_FB){
+    pendingSave=d;
+    try{localStorage.setItem(KEY+'-pending',JSON.stringify(d));}catch(e){}
+    sendPending();
+  }
 }
 
 /* ───────── рух цілей ───────── */
@@ -1518,7 +1533,7 @@ function tick(){
 /* Прийняти стан (з Firestore або localStorage): додати нові цілі, прибрати зниклі,
    перерахувати ті, чий маршрут чи час старту змінився. */
 function applyData(d){
-  S.auto=d.auto!==false;S.mult=d.mult||10;S.nextId=Math.max(S.nextId,d.nextId||1);
+  S.auto=d.auto!==false;S.mult=d.mult||1;S.nextId=Math.max(S.nextId,d.nextId||1);
   for(const r of RAIONS){const x=(d.raions||{})[r.id]||{};S.raions[r.id]={manual:x.manual||0,since:x.since||null};}
   const incoming=new Map((d.targets||[]).map(x=>[x.id,x]));
   for(const t of [...S.targets]){
@@ -1661,7 +1676,9 @@ function initFirebase(){
 
   DOC.onSnapshot(snap=>{
     if(snap.metadata.hasPendingWrites)return;    // власний запис, уже застосований
-    if(snap.exists)applyData(snap.data());
+    remoteReady=true;
+    if(pendingSave){sendPending();return;}
+    if(snap.exists){const data=snap.data();stateReady=false;try{applyData(data);}finally{stateReady=true;}storeLocal(data);}
   },err=>toast('Немає зв\'язку із сервером ('+(err.code||err.message)+')'));
 
   // «серцебиття»: поки адмін відкрив сторінку, він раз на 30 с оновлює час; глядачі бачать, чи він на зв'язку
@@ -1699,7 +1716,7 @@ function initFirebase(){
   });
 
   function startAdmin(owner){
-    setAdmin(true);document.body.classList.toggle('is-owner',owner);
+    setAdmin(true);sendPending();document.body.classList.toggle('is-owner',owner);
     beat();heart();clearInterval(beatT);beatT=setInterval(beat,30000);
     if(owner&&!admUnsub)admUnsub=ADMS.onSnapshot(s=>{admList=s.exists?(s.data().emails||[]).map(x=>String(x).toLowerCase()):[];renderAdmins();},()=>{});
     checkPresence();
@@ -1736,8 +1753,14 @@ function initFirebase(){
   $('#lock').addEventListener('click',()=>auth.signInWithPopup(new firebase.auth.GoogleAuthProvider()).catch(e=>toast('Вхід не вдався ('+(e.code||e.message)+')')));
   $('#logout').addEventListener('click',()=>auth.signOut());
 }
+try{
+  pendingSave=USE_FB?JSON.parse(localStorage.getItem(KEY+'-pending')):null;
+  const d=pendingSave||JSON.parse(localStorage.getItem(KEY));
+  if(d&&Array.isArray(d.targets))applyData(d);
+}catch(e){console.error('Не вдалося відновити карту',e);toast('Не вдалося прочитати збережену карту.',10000);}
+stateReady=true;
 if(USE_FB)initFirebase();
-else{try{const d=JSON.parse(localStorage.getItem(KEY));if(d&&Array.isArray(d.targets))applyData(d);}catch(e){}}
+addEventListener('online',sendPending);
 renderList();tick();
 setInterval(tick,1000);
 
