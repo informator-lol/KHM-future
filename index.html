@@ -549,7 +549,7 @@ body:not(.is-admin) #comments-form,body:not(.is-admin) .comment-post button{disp
       <label class="chk"><input type="checkbox" id="alOn"> Оновлювати тривоги без API-ключа</label>
       <p class="hint" id="alSt" role="status"></p>
       <p class="hint">Джерело: <a href="https://tryvoha.online/" target="_blank" rel="noopener">Tryvoha.online</a> · неофіційний сервіс. Перевірка кожні 30 секунд, поки карта відкрита в адміністратора. Тривога по області застосовується до всіх трьох районів.</p>
-      <p class="hint">Ручні рівні та рівні від цілей можуть залишити район підсвіченим після відбою. Якщо вимкнути оновлення або втратити зв’язок, останні дані зберігаються.</p>
+      <p class="hint">Ручні рівні та рівні від цілей можуть залишити район підсвіченим після відбою. Коли автооновлення вимкнено, зовнішні тривоги не впливають на карту. При втраті зв’язку з увімкненим автооновленням останній стан зберігається.</p>
     </section>
     <section>
       <button class="primary" id="add">＋ Додати ціль</button>
@@ -1660,7 +1660,7 @@ function autoLevels(){
 function tick(){
   const au=autoLevels();let dirty=false;
   for(const r of RAIONS){
-    const st=S.raions[r.id],al=S.alarm[r.id]||{lvl:0,since:null},eff=Math.max(st.manual,au[r.id],al.lvl);
+    const st=S.raions[r.id],al=(S.alarmMeta.on&&S.alarm[r.id])||{lvl:0,since:null},eff=Math.max(st.manual,au[r.id],al.lvl);
     // момент початку тривоги веде адмін (і записує для всіх); глядач без адміна рахує від першого побачення
     if(ADMIN){
       if(eff>0&&!st.since){st.since=Date.now();dirty=true;}
@@ -1808,7 +1808,7 @@ $('#alOn').addEventListener('change',e=>{
   AL.err='';AL.ok=null;
   if(!AL.on){
     S.alarmMeta={...S.alarmMeta,on:false,error:''};tick();commit();
-    toast('Автооновлення вимкнено. Останні отримані рівні збережено.');
+    toast('Автооновлення вимкнено. Діють ручні рівні та авто-рівні за цілями.');
   }
   alSync();
 });
