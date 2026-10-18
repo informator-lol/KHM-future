@@ -937,7 +937,7 @@ function catchUp(t,cap=20000){
 let pendingSpeedMigration=false;
 function flushSpeedMigration(){if(ADMIN&&pendingSpeedMigration){pendingSpeedMigration=false;commit();}}
 function hydrate(t){normalizeMembers(t);t.count=Math.max(1,Math.min(30,t.count||1));t.mult=t.mult||S.mult;t.hold=!!t.hold;t.stopped=!!t.stopped;t.note=t.note||'';t.lat=t.b.lat;t.lon=t.b.lon;t.hdg=t.b.hdg;t.idx=t.b.idx;t.done=false;t.gone=false;t.free=t.idx>=t.wps.length;t.simDone=0;catchUp(t,400000);
-  const fixed=t.type==='jet'?400:t.type==='drone'?170:null;
+  const fixed=null;   // швидкість тепер редагується вручну — примусову міграцію вимкнено
   if(fixed!==null&&t.speed!==fixed){
     // Preserve the position reached at the old speed before applying the new one.
     t.b={lat:t.lat,lon:t.lon,hdg:t.hdg,idx:t.idx};t.t0=Date.now();t.simDone=0;t.speed=fixed;
@@ -1094,6 +1094,7 @@ function buildPopup(t){
   <dt>Наступна точка</dt><dd data-f="next"></dd><dt>До кінця маршруту</dt><dd data-f="rem"></dd><dt>Прибуде через</dt><dd data-f="eta"></dd>
   <dt>Поблизу</dt><dd data-f="near"></dd><dt>Район</dt><dd data-f="raion"></dd><dt>Область</dt><dd data-f="oblast"></dd></dl>
   <div class="pa pnote"><input type="text" class="cm" maxlength="120" placeholder="Коментар: напр. стоїть на Деражні" spellcheck="false"><button type="button" class="sm" data-a="chip" data-t="Локаційно втрачений" style="flex:none;font-size:11.5px">Локаційно втрачений</button></div>
+  <div class="pa pspeed" style="display:flex;align-items:center;gap:8px;flex:1 1 100%"><label style="font-size:12px;opacity:.8">Швидкість, км/год</label><input type="number" class="spdin" min="1" max="3000" step="5" inputmode="numeric" style="width:90px;padding:6px 8px;font-size:13px"></div>
   <div class="pa ptypes">${ORDER.map(k=>`<button type="button" class="sm" data-a="type" data-k="${k}" title="Змінити тип на: ${TYPES[k].name}">${SVG[k]('#cfd6df')}<span>${TYPES[k].name}</span></button>`).join('')}</div>
   <span class="pa pl">Швидкість часу цієї цілі</span>
   <div class="pa pmult">${MULTS.map(m=>`<button type="button" class="sm" data-a="mult" data-m="${m}">×${m}</button>`).join('')}</div>
@@ -1108,6 +1109,9 @@ function buildPopup(t){
   ['keydown','keyup','keypress'].forEach(ev=>inp.addEventListener(ev,e=>{e.stopPropagation();if(ev==='keydown'&&e.key==='Enter'){e.preventDefault();inp.blur();}}));   // щоб +/−/стрілки не рухали карту
   inp.addEventListener('input',()=>{clearTimeout(nt);nt=setTimeout(()=>setNote(t,inp.value),500);});
   inp.addEventListener('change',()=>{clearTimeout(nt);setNote(t,inp.value);});
+  const si=el.querySelector('.spdin');
+  if(si){['keydown','keyup','keypress'].forEach(ev=>si.addEventListener(ev,e=>{e.stopPropagation();if(ev==='keydown'&&e.key==='Enter'){e.preventDefault();si.blur();}}));
+    si.addEventListener('change',()=>setSpeed(t,si.value));}
   el.addEventListener('click',e=>{e.stopPropagation();const b=e.target.closest('button');if(!b)return;e.preventDefault();const a=b.dataset.a;
     if(a==='info-now')setInfoAge(t,0);
     else if(a==='info-age'){const field=el.querySelector('.info-minutes');if(field.value===''||!field.checkValidity()){field.reportValidity();return;}setInfoAge(t,Number(field.value));}
@@ -1138,6 +1142,7 @@ function fillPopup(t,el){
   set('note',t.note||'—');
   const nTt=el.querySelector('[data-f="notet"]'),nTd=el.querySelector('[data-f="note"]');if(nTt)nTt.hidden=!t.note;if(nTd)nTd.hidden=!t.note;
   const ci=el.querySelector('.cm');if(ci&&document.activeElement!==ci&&ci.value!==(t.note||''))ci.value=t.note||'';
+  const spi=el.querySelector('.spdin');if(spi&&document.activeElement!==spi&&spi.value!==String(t.speed))spi.value=t.speed;
   const sb=el.querySelector('[data-a="stop"]');if(sb){sb.textContent=t.stopped?'▶ Продовжити':'⏸ Зупинити';sb.classList.toggle('go',!!t.stopped);}
   el.querySelectorAll('[data-a="type"]').forEach(b=>b.classList.toggle('on',membersOf(t).every(k=>k===b.dataset.k)));
   const mh=el.querySelector('[data-h="move"]');if(mh)mh.hidden=!t.stopped;
@@ -1246,6 +1251,14 @@ function editRoute(t,towns,status,prob,type,note,count,mult,preserveRoute=false,
   renderList();tick();commit();
 }
 function refreshTarget(t){const rt=RT.get(t.id);if(rt){syncLook(t,rt);fillPopup(t,rt.pop);}renderList();tick();commit();}
+function setSpeed(t,v){                          // ручна зміна швидкості цілі (км/год)
+  if(!ADMIN||t.done)return;
+  v=Math.round(Number(v));
+  if(!isFinite(v)||v<1){const rt=RT.get(t.id);if(rt)fillPopup(t,rt.pop);return;}
+  v=Math.min(3000,v);if(t.speed===v)return;
+  rebase(t);t.speed=v;
+  refreshTarget(t);toast(`#${t.id} · ${v} км/год`);
+}
 function setNote(t,v){
   if(!ADMIN)return;
   v=String(v||'').trim().slice(0,120);if((t.note||'')===v)return;
@@ -2246,7 +2259,7 @@ document.addEventListener('keydown',e=>{
 },true);
 
 
-window.SIM={setMult,setCount,splitOne,inUkraine,lookOf,courseLL,S,map,createTarget,removeTarget,findTown,parseRoute,stepT,raionAt,inOblast,openModal,applyData,setAdmin,live,setStopped,changeType,setNote};
+window.SIM={setMult,setCount,splitOne,inUkraine,lookOf,courseLL,S,map,createTarget,removeTarget,findTown,parseRoute,stepT,raionAt,inOblast,openModal,applyData,setAdmin,live,setStopped,changeType,setNote,setSpeed};
 })();
 </script>
 </body>
