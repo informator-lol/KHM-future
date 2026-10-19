@@ -475,6 +475,9 @@ body:not(.is-admin) #comments-form,body:not(.is-admin) .comment-post button{disp
 .info-age{margin:8px 0;padding:9px 11px;background:#152a3d;border:1px solid #385571;border-radius:10px;font-size:12px;font-weight:700;color:#c4ddf5}.info-age.stale{background:#352519;border-color:#8a6035;color:#ffca8b}
 .freshness-controls{padding-bottom:10px;border-bottom:1px solid #30455d}.freshness-controls label{display:flex;align-items:center;gap:6px;font-size:11px;color:#adc2d9;width:100%}.info-minutes{width:65px;min-height:34px;padding:5px;background:#101b2b;color:#eef5ff;border:1px solid #425976;border-radius:7px;font:inherit}.t-age{display:block;font-size:10px;color:#adc5de;margin-top:5px}.t-age.stale{color:#ffbd78}.tupdated{position:absolute;left:50%;top:calc(100% + 12px);transform:translateX(-50%);white-space:nowrap;background:#111c2bef;color:#b7cfe6;border:1px solid #344b62;border-radius:5px;padding:2px 5px;font:600 9px/1.3 system-ui;pointer-events:none}.tupdated:empty{display:none}.tupdated.stale{color:#ffbf80;border-color:#8a6035}
 @media(max-width:720px){.info-minutes{font-size:16px;min-height:40px}}
+.pinfo .pspeed input,.pinfo select,.heading-controls input[type=number]{background:#0d1823;color:#edf3fa;border:1px solid #3b4d60;border-radius:10px;min-height:40px;padding:8px 10px;box-sizing:border-box;font:inherit;color-scheme:dark}
+.pinfo .pspeed{justify-content:space-between;padding:10px 0}.status-label{width:100%;display:grid;gap:8px;font-size:12px;color:#b7c7d8}.status-label select{width:100%}
+.straight-editor{border:1px solid #34475b;border-radius:12px;padding:12px;margin:12px 0}.straight-editor summary{cursor:pointer;font-weight:600;font-size:13px}.straight-editor.pa{display:block}.heading-controls{display:grid;gap:12px;padding-top:12px}.heading-controls label{display:flex;align-items:center;justify-content:space-between;gap:8px;font-size:12px}.heading-controls input[type=number]{width:85px}.heading-controls input[type=range]{width:100%;accent-color:#ff941f}.heading-controls small{color:#a8b9ca;line-height:1.5}.heading-preview{justify-self:center;font-size:36px;line-height:1;color:#ff941f}.heading-controls button{min-height:40px}
 </style>
 <link rel="icon" type="image/png" href="./favicon.png?v=1">
 <link rel="apple-touch-icon" href="./favicon.png?v=1">
@@ -604,6 +607,7 @@ body:not(.is-admin) #comments-form,body:not(.is-admin) .comment-post button{disp
       <p class="hint">Немає місця в пошуку? Натисніть на карту. Вибрана точка стане початком маршруту.</p>
       <p class="hint">«З першого міста»: ціль стартує з першого міста маршруту й одразу летить до другого. Якщо місто одне, ціль з'являється на ньому (іконка й стрілка) і стоїть, поки не змінити курс ✎.</p>
     </div>
+    <details id="modal-straight" class="straight-editor"><summary>↗ Задати прямий курс за кутом</summary><div id="modal-heading"></div></details>
     <label class="lbl" for="mroute">Куди летить · курс</label>
     <input type="text" id="mroute" placeholder="Шепетівка → Хмельницький" spellcheck="false" autocapitalize="off">
     <button type="button" class="ghost" id="pick-route" style="width:100%;margin-top:8px">＋ Додати точку курсу на карті</button>
@@ -865,7 +869,7 @@ const ORDER = ['jet','missile','drone'];
 const RADAR_OFF="<svg viewBox=\"0 0 24 24\" width=\"16\" height=\"16\" aria-hidden=\"true\"><circle cx=\"12\" cy=\"12\" r=\"8\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.7\"/><path d=\"M12 7a5 5 0 0 1 5 5M12 12l5-5M4 4l16 16\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\"/></svg>";
 const ST={locating:{color:'#ff3b3b',name:'Позиція уточнюється'},untracked:{color:'#57dc9b',name:'Не фіксується'},predicted:{color:'#3b9bff',name:'Непідтверджений'},confirmed:{color:'#ff3b3b',name:'Підтверджений'},free:{color:'#ffd43b',name:'Курс втрачено'},stopped:{color:'#3b9bff',name:'Зупинено'}};
 const stOf=t=>['untracked','predicted','locating'].includes(t?.status)?t.status:'confirmed';
-const lookOf=t=>stOf(t)==='untracked'?'untracked':t&&t.stopped?'stopped':t&&t.free?'free':stOf(t);
+const lookOf=t=>stOf(t)==='untracked'?'untracked':t&&t.stopped?'stopped':t&&t.free&&!t.straight?'free':stOf(t);
 const tcol=t=>ST[lookOf(t)].color;
 const SVG = {
   drone:c=>`<svg viewBox="0 0 48 48" width="34" height="34" aria-hidden="true"><g fill="${c}" stroke="#101722" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round"><path d="M24 3 46 35 43 39 28 34 27 41 21 41 20 34 5 39 2 35Z"/><path d="M24 7 27 31 24 36 21 31Z" fill="#fff" opacity=".32" stroke="none"/><path d="M8 35 20 31M40 35 28 31M17 43h14" fill="none"/><path d="M24 38v7"/></g></svg>`,
@@ -925,7 +929,7 @@ const live=()=>S.targets.filter(t=>!t.done);
 const MULTS=[1,5,10,30,60];
 const mOf=t=>t.mult||S.mult;                 // швидкість часу цієї цілі (якщо не задана — загальна)
 const cOf=t=>Math.max(1,t.count||1);          // скільки одиниць у групі
-const sigOf=x=>JSON.stringify([x.type,x.wps,x.speed,x.b,x.t0,!!x.hold,stOf(x),x.prob||0,!!x.stopped,x.count||1,x.mult||S.mult,membersOf(x)]);   // коментар не входить: він оновлюється «на місці»
+const sigOf=x=>JSON.stringify([x.type,!!x.straight,x.wps,x.speed,x.b,x.t0,!!x.hold,stOf(x),x.prob||0,!!x.stopped,x.count||1,x.mult||S.mult,membersOf(x)]);   // коментар не входить: він оновлюється «на місці»
 
 /* Ціль зберігається як знімок {b, t0}: де вона була в момент t0.
    Поточне місце кожен браузер рахує сам із часу, що минув, тож усі бачать її в одній точці. */
@@ -962,21 +966,22 @@ function rebase(t){catchUp(t);t.b={lat:t.lat,lon:t.lon,hdg:t.hdg,idx:t.idx};t.t0
 
 function serialize(){
   return JSON.parse(JSON.stringify({auto:S.auto,mult:S.mult,nextId:S.nextId,raions:S.raions,alarm:S.alarm,alarmMeta:S.alarmMeta,
-    targets:live().map(t=>{const x={id:t.id,type:t.type,wps:t.wps,speed:t.speed,b:t.b,t0:t.t0,hold:!!t.hold,status:stOf(t),prob:t.prob||0,stopped:!!t.stopped,note:t.note||'',infoUpdatedAt:infoTime(t),count:cOf(t),members:membersOf(t),mult:mOf(t)};t.sig=sigOf(x);return x;})}));
+    targets:live().map(t=>{const x={id:t.id,type:t.type,straight:!!t.straight,wps:t.wps,speed:t.speed,b:t.b,t0:t.t0,hold:!!t.hold,status:stOf(t),prob:t.prob||0,stopped:!!t.stopped,note:t.note||'',infoUpdatedAt:infoTime(t),count:cOf(t),members:membersOf(t),mult:mOf(t)};t.sig=sigOf(x);return x;})}));
 }
 function storeLocal(d){
   try{localStorage.setItem(KEY,JSON.stringify(d));return true;}
   catch(e){if(!saveWarning){saveWarning=true;toast('Браузер заборонив збереження. Дані можуть зникнути після F5.',12000);}return false;}
 }
+let saveInFlight=false;
 function sendPending(){
-  if(!ADMIN||!DOC||!remoteReady||!pendingSave)return;
-  const sent=pendingSave;
+  if(!ADMIN||!DOC||!remoteReady||!pendingSave||saveInFlight)return;
+  const sent=pendingSave;saveInFlight=true;
   DOC.set(sent,{merge:true}).then(()=>{
     if(pendingSave===sent){pendingSave=null;try{localStorage.removeItem(KEY+'-pending');}catch(e){}}
-  }).catch(e=>toast('Сервер не зберіг зміни. Локальна копія залишилась: '+(e.code||e.message),10000));
+  }).catch(e=>toast('Сервер не зберіг зміни. Локальна копія залишилась: '+(e.code||e.message),10000)).finally(()=>{saveInFlight=false;if(pendingSave&&pendingSave!==sent)sendPending();});
 }
 function commit(){
-  if(!ADMIN||!stateReady)return;
+  if(!ADMIN||!stateReady||(USE_FB&&!remoteReady))return;
   const d=serialize();storeLocal(d);
   if(USE_FB){
     pendingSave=d;
@@ -1035,7 +1040,13 @@ const straightText=t=>{
 };
 const routeTextBase = t => t.free?straightText(t):t.hold&&t.wps[t.idx]?'курсом на '+t.wps[t.idx].name+', невідомо звідки':t.wps.slice(t.idx).map(w=>w.name).join(' → ');
 const routeText=t=>(stOf(t)==='untracked'?'Не фіксується · розрахунковий курс: ':'')+routeTextBase(t);
-const courseLL = t => t.free?[[t.lat,t.lon],moveBy(t.lat,t.lon,70000,t.hdg)]:[[t.lat,t.lon],...t.wps.slice(t.idx).map(w=>[w.lat,w.lon])];
+const courseLL = (t,heading=t.hdg) => {
+ const origin=[t.lat,t.lon];
+ if(t.free)return [origin,moveBy(t.lat,t.lon,70000,heading)];
+ const wp=t.wps[t.idx];if(!wp)return [origin];
+ const lead=moveBy(t.lat,t.lon,Math.min(5000,distM(t.lat,t.lon,wp.lat,wp.lon)*.25),heading);
+ return [origin,lead,...t.wps.slice(t.idx).map(w=>[w.lat,w.lon])];
+};
 
 const BRG={N:0,NE:45,E:90,SE:135,S:180,SW:225,W:270,NW:315};
 function exitDist(lat,lon,b){let d=0,p=[lat,lon];while(d<400000&&inOblast(p[0],p[1])){p=moveBy(p[0],p[1],4000,b);d+=4000;}return d;}
@@ -1095,6 +1106,7 @@ function buildPopup(t){
   <dt>Поблизу</dt><dd data-f="near"></dd><dt>Район</dt><dd data-f="raion"></dd><dt>Область</dt><dd data-f="oblast"></dd></dl>
   <div class="pa pnote"><input type="text" class="cm" maxlength="120" placeholder="Коментар: напр. стоїть на Деражні" spellcheck="false"><button type="button" class="sm" data-a="chip" data-t="Локаційно втрачений" style="flex:none;font-size:11.5px">Локаційно втрачений</button></div>
   <div class="pa pspeed" style="display:flex;align-items:center;gap:8px;flex:1 1 100%"><label style="font-size:12px;opacity:.8">Швидкість, км/год</label><input type="number" class="spdin" min="1" max="3000" step="5" inputmode="numeric" style="width:90px;padding:6px 8px;font-size:13px"></div>
+  <div class="pa"><label class="status-label">Стан цілі<select class="target-status">${["confirmed","locating","untracked","predicted"].map(k=>`<option value="${k}">${ST[k].name}</option>`).join('')}</select></label></div><details class="pa straight-editor"><summary>↗ Задати прямий курс</summary></details>
   <div class="pa ptypes">${ORDER.map(k=>`<button type="button" class="sm" data-a="type" data-k="${k}" title="Змінити тип на: ${TYPES[k].name}">${SVG[k]('#cfd6df')}<span>${TYPES[k].name}</span></button>`).join('')}</div>
   <span class="pa pl">Швидкість часу цієї цілі</span>
   <div class="pa pmult">${MULTS.map(m=>`<button type="button" class="sm" data-a="mult" data-m="${m}">×${m}</button>`).join('')}</div>
@@ -1105,6 +1117,8 @@ function buildPopup(t){
   <div class="pa"><button type="button" class="sm" data-a="edit">✎ Змінити курс</button><button type="button" class="sm danger" data-a="del">✕ Забрати</button></div>`;
   // Stop events inside the controls before Leaflet can treat them as map clicks.
   L.DomEvent.disableClickPropagation(el);L.DomEvent.disableScrollPropagation(el);
+  el.querySelector('.straight-editor').append(headingControls(t));
+  el.querySelector('.target-status').addEventListener('change',e=>setTargetStatus(t,e.target.value));
   const inp=el.querySelector('.cm');let nt;
   ['keydown','keyup','keypress'].forEach(ev=>inp.addEventListener(ev,e=>{e.stopPropagation();if(ev==='keydown'&&e.key==='Enter'){e.preventDefault();inp.blur();}}));   // щоб +/−/стрілки не рухали карту
   inp.addEventListener('input',()=>{clearTimeout(nt);nt=setTimeout(()=>setNote(t,inp.value),500);});
@@ -1142,19 +1156,20 @@ function fillPopup(t,el){
   set('note',t.note||'—');
   const nTt=el.querySelector('[data-f="notet"]'),nTd=el.querySelector('[data-f="note"]');if(nTt)nTt.hidden=!t.note;if(nTd)nTd.hidden=!t.note;
   const ci=el.querySelector('.cm');if(ci&&document.activeElement!==ci&&ci.value!==(t.note||''))ci.value=t.note||'';
+  const statusSelect=el.querySelector('.target-status');if(statusSelect&&document.activeElement!==statusSelect)statusSelect.value=stOf(t);
   const spi=el.querySelector('.spdin');if(spi&&document.activeElement!==spi&&spi.value!==String(t.speed))spi.value=t.speed;
   const sb=el.querySelector('[data-a="stop"]');if(sb){sb.textContent=t.stopped?'▶ Продовжити':'⏸ Зупинити';sb.classList.toggle('go',!!t.stopped);}
   el.querySelectorAll('[data-a="type"]').forEach(b=>b.classList.toggle('on',membersOf(t).every(k=>k===b.dataset.k)));
   const mh=el.querySelector('[data-h="move"]');if(mh)mh.hidden=!t.stopped;
   set('spd',t.stopped?'0 км/год · зупинено':t.speed+' км/год');
   set('prob',stOf(t)==='predicted'&&!t.free&&!t.stopped?(t.prob||60)+'% що летить туди':'—');
-  set('st',stOf(t)==='locating'&&!t.free&&!t.stopped?'Позиція уточнюється, курс відомий':stOf(t)==='untracked'?'Не фіксується · розрахункова позиція':t.stopped?'Зупинено ? · курс збережено':t.free?'Курс втрачено ? · летить прямо':stOf(t)==='predicted'?'Непідтверджений ?':'Підтверджений');
+  set('st',stOf(t)==='locating'&&!t.free&&!t.stopped?'Позиція уточнюється, курс відомий':stOf(t)==='untracked'?'Не фіксується · розрахункова позиція':t.stopped?'Зупинено ? · курс збережено':t.free?(t.straight?'Прямий курс за кутом':'Курс втрачено ? · летить прямо'):stOf(t)==='predicted'?'Непідтверджений ?':'Підтверджений');
   const pi=el.querySelector('.pi');if(pi)pi.innerHTML=shareIconSvg(t,tcol(t));
   set('hdg',String(Math.round(t.hdg)%360).padStart(3,'0')+'° '+compass(t.hdg));
   set('route',routeText(t));
   set('next',t.stopped?'стоїть на місці · далі '+(t.free?'прямо':wp.name):t.free?straightText(t):t.hold?'курсом на '+wp.name+', невідомо звідки':wp.name+' · '+km(distM(t.lat,t.lon,wp.lat,wp.lon))+' км');
   set('rem',t.hold||t.free||t.stopped?'—':km(rem)+' км');
-  set('eta',t.stopped?'зупинено':t.free?'невідомо · курс втрачено':t.hold?'невідомо':fmtEta(rem/(t.speed/3.6*mOf(t))));
+  set('eta',t.stopped?'зупинено':t.free?(t.straight?'— · прямий курс':'невідомо · курс втрачено'):t.hold?'невідомо':fmtEta(rem/(t.speed/3.6*mOf(t))));
   const near=nearestPlace(t);set('near',near.name+' · '+km(near.distance)+' км');
   const area=locationOf(t.lat,t.lon);set('raion',area.district);set('oblast',area.oblast);
 }
@@ -1233,6 +1248,8 @@ function createTarget(type,towns,dirKey,status,prob,note,count,mult,origin,membe
 }
 function editRoute(t,towns,status,prob,type,note,count,mult,preserveRoute=false,members){
   catchUp(t);
+  t.infoUpdatedAt=Date.now();
+  if(!preserveRoute)t.straight=false;
   if(count)t.count=Math.max(1,Math.min(30,count));
   if(mult)t.mult=mult;
   if(type&&TYPES[type]&&type!==t.type){t.type=type;t.speed=rollSpeed(type);}
@@ -1251,6 +1268,26 @@ function editRoute(t,towns,status,prob,type,note,count,mult,preserveRoute=false,
   renderList();tick();commit();
 }
 function refreshTarget(t){const rt=RT.get(t.id);if(rt){syncLook(t,rt);fillPopup(t,rt.pop);}renderList();tick();commit();}
+function setTargetStatus(t,status){
+  if(!ADMIN||t.done)return;
+  t.status=stOf({status});t.infoUpdatedAt=Date.now();refreshTarget(t);
+}
+function setStraight(t,angle){
+  if(!ADMIN||t.done||!Number.isFinite(angle)||angle<0||angle>359)return;
+  rebase(t);t.straight=true;t.wps=[];t.idx=0;t.free=true;t.hold=false;
+  t.hdg=angle;t.b={lat:t.lat,lon:t.lon,hdg:angle,idx:0};t.infoUpdatedAt=Date.now();
+  refreshTarget(t);
+}
+function headingControls(t){
+  const box=document.createElement('div');box.className='heading-controls';
+  box.innerHTML='<label>Прямий курс · градуси <input class="heading-number" type="number" min="0" max="359" step="1" aria-label="Кут курсу"></label><input class="heading-range" type="range" min="0" max="359" step="1" aria-label="Повернути ціль"><div class="heading-preview" aria-hidden="true">↑</div><small>0° — північ · 90° — схід · 180° — південь · 270° — захід</small><button class="sm" type="button">Зберегти прямий курс</button>';
+  const number=box.querySelector('.heading-number'),range=box.querySelector('.heading-range'),preview=box.querySelector('.heading-preview');preview.innerHTML=SVG[t.type](tcol(t));
+  const update=v=>{number.value=v;range.value=v;preview.style.transform='rotate('+v+'deg)';};update(Math.round(t.hdg)%360);
+  range.addEventListener('input',()=>update(range.value));number.addEventListener('input',()=>{if(number.value!==''&&number.checkValidity()){range.value=number.value;preview.style.transform='rotate('+number.value+'deg)';}});
+  box.addEventListener('keydown',e=>e.stopPropagation());
+  box.querySelector('button').addEventListener('click',e=>{e.preventDefault();e.stopPropagation();if(number.value===''||!number.checkValidity()){number.reportValidity();return;}setStraight(t,Number(number.value));if(box.closest('#modal'))closeModal();toast('Прямий курс збережено: '+number.value+'°');});
+  return box;
+}
 function setSpeed(t,v){                          // ручна зміна швидкості цілі (км/год)
   if(!ADMIN||t.done)return;
   v=Math.round(Number(v));
@@ -1289,7 +1326,7 @@ function splitOne(t){                             // відділити одну
   if(!ADMIN||t.done||cOf(t)<2)return;
   rebase(t);normalizeMembers(t);const splitType=t.members.pop();t.count=t.members.length;
   const p=moveBy(t.lat,t.lon,2500,(t.hdg+90)%360);
-  const n={id:nid(),infoUpdatedAt:infoTime(t),type:splitType,wps:t.wps.map(w=>({name:w.name,lat:w.lat,lon:w.lon,sub:w.sub||''})),speed:t.speed,count:1,mult:mOf(t),note:t.note||'',stopped:!!t.stopped,
+  const n={id:nid(),infoUpdatedAt:infoTime(t),type:splitType,straight:!!t.straight,wps:t.wps.map(w=>({name:w.name,lat:w.lat,lon:w.lon,sub:w.sub||''})),speed:t.speed,count:1,mult:mOf(t),note:t.note||'',stopped:!!t.stopped,
     b:{lat:p[0],lon:p[1],hdg:t.hdg,idx:t.idx},t0:Date.now(),hold:!!t.hold,status:stOf(t),prob:t.prob||0};
   hydrate(n);S.targets.push(n);addRuntime(n);
   refreshTarget(t);
@@ -1451,6 +1488,7 @@ function openModal(mode,id){
   clearTimeout(kickT);PICK.clear();closeTargetSheet();M.mode=mode;M.id=id||null;M.origin=null;syncOrigin();
   if(!ADMIN)return;
   const t=id?live().find(x=>x.id===id):null;
+  $('#modal-straight').hidden=!t;$('#modal-heading').replaceChildren();if(t)$('#modal-heading').append(headingControls(t));
   if(t)M.type=t.type;
   M.count=t?cOf(t):1;M.members=t?membersOf(t):[M.type];M.mult=t?mOf(t):S.mult;
   M.status=t?stOf(t):DEFS.status;M.prob=t&&t.prob?t.prob:60;$('#mprob').value=M.prob;$('#mprobv').textContent=M.prob+'%';
@@ -1719,7 +1757,7 @@ function applyData(d){
     dropRuntime(t.id);S.targets.splice(S.targets.indexOf(t),1);
   }
   for(const x of incoming.values()){
-    const t={id:x.id,infoUpdatedAt:infoTime(x),type:x.type,wps:x.wps,speed:x.speed,count:x.count||1,members:x.members,mult:x.mult||S.mult,b:x.b,t0:x.t0,hold:!!x.hold,stopped:!!x.stopped,note:x.note||'',status:stOf(x),prob:x.prob||0,sig:sigOf(x)};
+    const t={id:x.id,infoUpdatedAt:infoTime(x),type:x.type,straight:!!x.straight,wps:x.wps,speed:x.speed,count:x.count||1,members:x.members,mult:x.mult||S.mult,b:x.b,t0:x.t0,hold:!!x.hold,stopped:!!x.stopped,note:x.note||'',status:stOf(x),prob:x.prob||0,sig:sigOf(x)};
     hydrate(t);S.targets.push(t);if(!t.done)addRuntime(t);
   }
   const na={};for(const r of RAIONS){const x=(d.alarm||{})[r.id]||{};na[r.id]={lvl:+x.lvl||0,since:x.since||null};}
@@ -1916,8 +1954,14 @@ function initFirebase(){
   DOC.onSnapshot({includeMetadataChanges:true},snap=>{
     if(snap.exists)acceptComments(snap.data().announcements||{});
     if(snap.metadata.hasPendingWrites)return;    // власний запис, уже застосований
-    remoteReady=true;
-    if(pendingSave){sendPending();return;}
+    if(snap.metadata.fromCache)return;
+    const first=!remoteReady;remoteReady=true;
+    if(first&&pendingSave&&snap.exists){
+      try{localStorage.setItem(KEY+'-recovery',JSON.stringify(pendingSave));localStorage.removeItem(KEY+'-pending');}catch(_){}
+      pendingSave=null;
+      toast('Завантажено серверний стан. Незбережену локальну копію залишено для відновлення.',8000);
+    }
+    if(pendingSave&&ADMIN){sendPending();return;}
     if(snap.exists){const data=snap.data();stateReady=false;try{applyData(data);}finally{stateReady=true;}storeLocal(data);}
   },err=>toast('Немає зв\'язку із сервером ('+(err.code||err.message)+')'));
 
@@ -2029,7 +2073,7 @@ function frame(now){
     const nn=t.note||'';if(rt.note!==nn){rt.note=nn;rt.noteEl.textContent=nn;}
     rt.visualHdg=smoothIconHeading(rt.visualHdg,t.hdg,dtr,membersOf(t).includes('jet'));
     rt.rot.style.transform=`rotate(${rt.visualHdg}deg)`;
-    rt.line.setLatLngs(courseLL(t));
+    rt.line.setLatLngs(courseLL(t,rt.visualHdg));
     if(pushTrail){rt.tp.push([t.lat,t.lon]);if(rt.tp.length>70)rt.tp.shift();rt.trail.setLatLngs(rt.tp);}
   }
   requestAnimationFrame(frame);
