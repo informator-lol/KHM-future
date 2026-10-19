@@ -486,6 +486,9 @@ body:not(.is-admin) #comments-form,body:not(.is-admin) .comment-post button{disp
 .pinfo .freshness-controls{display:grid;grid-template-columns:1fr auto;padding-bottom:8px}.freshness-controls [data-a=info-now]{grid-column:1/-1}.pinfo .freshness-controls label{width:auto;gap:4px;font-size:10px;min-width:0}.freshness-controls .info-minutes{width:45px;min-height:30px;box-sizing:border-box}.pinfo .freshness-controls [data-a=info-age]{padding:5px 7px;font-size:10px}.pinfo .info-age{padding:7px 9px;margin:6px 0}.pinfo .hint{font-size:10px;line-height:1.45}
 #maintenance-gate{position:fixed;inset:0;z-index:100000;background:#0b1420;display:grid;place-items:center;padding:24px;color:#e5effb}#maintenance-gate[hidden]{display:none}#maintenance-gate>div{max-width:440px;text-align:center}#maintenance-gate h1{font-size:27px;line-height:1.25}#maintenance-gate p{color:#a8bdd4;line-height:1.7}.maintenance-symbol{display:block;font-size:56px;color:#ffa23d;margin-bottom:18px}#maintenance-login{padding:10px 16px;border:1px solid #405773;border-radius:10px;background:#1c2c40;color:#cfe2f7;margin-top:16px}body.maintenance-blocked{overflow:hidden}body.maintenance-blocked> :not(#maintenance-gate):not(script):not(style){visibility:hidden!important}
 .comment-attach-tools{display:flex;gap:6px;margin-top:8px}.comment-attach-tools button,#attachment-picker button,#attachment-draft button{background:#1c3045;color:#c9e6ff;border:1px solid #3e5c78;border-radius:8px;padding:8px;font-size:11px}#attachment-picker{padding:8px;border:1px solid #354d66;border-radius:10px;margin-top:8px}#attachment-search{width:100%;background:#0d1a28;color:#e6f1ff;border:1px solid #3e5c78;border-radius:8px;padding:8px}#attachment-results{display:grid;gap:5px;max-height:150px;overflow:auto;margin:6px 0;font-size:12px}#attachment-results button{text-align:left}#attachment-draft{display:flex;flex-wrap:wrap;gap:5px;margin-top:7px}body:not(.is-admin) .comment-post .comment-location,.comment-post .comment-location{display:inline-flex;align-items:center;gap:6px;margin-top:10px;background:#173449;border-color:#3b7392;color:#9ee4ff;padding:8px 10px;text-align:left}.comment-map-highlight{pointer-events:none}.comment-map-highlight span{display:block;width:100%;height:100%;box-sizing:border-box;border:3px solid #8ce6ff;border-radius:50%;background:#7bdfff26;box-shadow:0 0 0 10px #7bdfff18,0 0 28px #6bdcff88;animation:comment-highlight 5s linear forwards}@keyframes comment-highlight{0%{opacity:0;transform:scale(.65)}12%,70%{opacity:1;transform:scale(1)}100%{opacity:0;transform:scale(1.2)}}
+.heading-controls button{background:#20364c;color:#e5f1ff;border:1px solid #466580;border-radius:9px;padding:8px 12px;font:600 12px system-ui;cursor:pointer}.heading-controls button:hover{background:#2b4865}.heading-controls input[type=checkbox]{accent-color:#ff941f;color-scheme:dark}
+#about-link{top:auto!important;bottom:18px!important;left:18px;right:auto!important;padding:8px 12px;min-height:36px}body.is-admin #about-link{left:360px}#comments-toggle{top:68px!important;bottom:auto!important;right:12px;padding:9px 12px;min-height:38px}#create-straight-label{margin-top:10px;font-size:12px}
+@media(max-width:720px){#about-link,body.is-admin #about-link{left:10px;bottom:20px!important}#comments-toggle{top:148px!important;right:10px}}
 </style>
 <link rel="icon" type="image/png" href="./favicon.png?v=1">
 <link rel="apple-touch-icon" href="./favicon.png?v=1">
@@ -526,7 +529,7 @@ body:not(.is-admin) #comments-form,body:not(.is-admin) .comment-post button{disp
  <p id="comments-message" role="status"></p>
 </aside>
 <div id="map"></div>
-<a id="about-link" href="about.html">ⓘ Про сайт</a>
+<a id="about-link" href="about.html">ⓘ Інфо</a>
 <div id="map-hud" aria-label="Стан карти">
 <div id="badge"><i></i>Неофіційна карта · за відкритими джерелами · можливі неточності</div>
 <div id="offline" hidden role="alert">⚠ Адміністратора немає в мережі — карта наразі не оновлюється</div>
@@ -618,7 +621,7 @@ body:not(.is-admin) #comments-form,body:not(.is-admin) .comment-post button{disp
       <p class="hint">Немає місця в пошуку? Натисніть на карту. Вибрана точка стане початком маршруту.</p>
       <p class="hint">«З першого міста»: ціль стартує з першого міста маршруту й одразу летить до другого. Якщо місто одне, ціль з'являється на ньому (іконка й стрілка) і стоїть, поки не змінити курс ✎.</p>
     </div>
-    <details id="modal-straight" class="straight-editor"><summary>↗ Задати прямий курс за кутом</summary><div id="modal-heading"></div></details>
+    <details id="modal-straight" class="straight-editor"><summary>↗ Задати прямий курс за кутом</summary><label class="chk" id="create-straight-label"><input type="checkbox" id="create-straight"> Створити з прямим курсом</label><div id="modal-heading"></div></details>
     <label class="lbl" for="mroute">Куди летить · курс</label>
     <input type="text" id="mroute" placeholder="Шепетівка → Хмельницький" spellcheck="false" autocapitalize="off">
     <button type="button" class="ghost" id="pick-route" style="width:100%;margin-top:8px">＋ Додати точку курсу на карті</button>
@@ -940,7 +943,7 @@ const live=()=>S.targets.filter(t=>!t.done);
 const MULTS=[1,5,10,30,60];
 const mOf=t=>t.mult||S.mult;                 // швидкість часу цієї цілі (якщо не задана — загальна)
 const cOf=t=>Math.max(1,t.count||1);          // скільки одиниць у групі
-const sigOf=x=>JSON.stringify([x.type,!!x.straight,x.wps,x.speed,x.b,x.t0,!!x.hold,stOf(x),x.prob||0,!!x.stopped,x.count||1,x.mult||S.mult,membersOf(x)]);   // коментар не входить: він оновлюється «на місці»
+const sigOf=x=>JSON.stringify([x.type,!!x.straight,x.straightAngle,x.wps,x.speed,x.b,x.t0,!!x.hold,stOf(x),x.prob||0,!!x.stopped,x.count||1,x.mult||S.mult,membersOf(x)]);   // коментар не входить: він оновлюється «на місці»
 
 /* Ціль зберігається як знімок {b, t0}: де вона була в момент t0.
    Поточне місце кожен браузер рахує сам із часу, що минув, тож усі бачать її в одній точці. */
@@ -977,7 +980,7 @@ function rebase(t){catchUp(t);t.b={lat:t.lat,lon:t.lon,hdg:t.hdg,idx:t.idx};t.t0
 
 function serialize(){
   return JSON.parse(JSON.stringify({auto:S.auto,mult:S.mult,nextId:S.nextId,raions:S.raions,alarm:S.alarm,alarmMeta:S.alarmMeta,
-    targets:live().map(t=>{const x={id:t.id,targetKey:t.targetKey||String(t.id)+'-'+String(t.t0),type:t.type,straight:!!t.straight,wps:t.wps,speed:t.speed,b:t.b,t0:t.t0,hold:!!t.hold,status:stOf(t),prob:t.prob||0,stopped:!!t.stopped,note:t.note||'',infoUpdatedAt:infoTime(t),count:cOf(t),members:membersOf(t),mult:mOf(t)};t.sig=sigOf(x);return x;})}));
+    targets:live().map(t=>{const x={id:t.id,targetKey:t.targetKey||String(t.id)+'-'+String(t.t0),type:t.type,straight:!!t.straight,straightAngle:Number.isFinite(t.straightAngle)?t.straightAngle:t.hdg,wps:t.wps,speed:t.speed,b:t.b,t0:t.t0,hold:!!t.hold,status:stOf(t),prob:t.prob||0,stopped:!!t.stopped,note:t.note||'',infoUpdatedAt:infoTime(t),count:cOf(t),members:membersOf(t),mult:mOf(t)};t.sig=sigOf(x);return x;})}));
 }
 function storeLocal(d){
   try{localStorage.setItem(KEY,JSON.stringify(d));return true;}
@@ -1009,7 +1012,9 @@ function stepT(t,dt){
   let left=dt;
   while(left>0&&!t.done){
     if(t.free){                                  // маршрут закінчено: летить прямо, поки не залишить Україну
-      const st=Math.min(left,5000/v);left-=st;
+      const turning=t.straight&&Number.isFinite(t.straightAngle)&&Math.abs(((t.straightAngle-t.hdg+540)%360)-180)>.001;
+      const st=Math.min(left,turning?0.1:5000/v);left-=st;
+      if(turning){const delta=((t.straightAngle-t.hdg+540)%360)-180,limit=T.turn*st;t.hdg=(t.hdg+Math.max(-limit,Math.min(limit,delta))+360)%360;}
       const q=moveBy(t.lat,t.lon,v*st,t.hdg);t.lat=q[0];t.lon=q[1];
       if(!inUkraine(t.lat,t.lon)){t.done=true;t.gone=true;}
       continue;
@@ -1206,6 +1211,7 @@ function syncLook(t,rt){
   rt.trail.setStyle({color:col});
 }
 function addRuntime(t,visualHdg=t.hdg){
+  visualHdg=t.hdg;
   const T=TYPES[t.type],col=tcol(t);
   const isz=iconSize(t);
   const icon=L.divIcon({className:'tgt'+(cOf(t)>1?' grp':''),iconSize:[isz,isz],iconAnchor:[isz/2,isz/2],html:`<div class="ring" style="--c:${col}"></div><div class="rot" style="--c:${col}">${iconHTML(t,col)}</div><svg class="harrow" viewBox="0 0 24 28" width="22" height="26" aria-hidden="true" style="--c:${col}"><path d="M12 26 L2 12 H8 V2 H16 V12 H22 Z" fill="${col}" stroke="#0b0e12" stroke-width="1.6" stroke-linejoin="round"/></svg><span class="tid">${t.id}</span><b class="cnt"></b><b class="qm">?</b><span class="tnote"></span><span class="tupdated"></span>`});
@@ -1239,7 +1245,7 @@ function addRuntime(t,visualHdg=t.hdg){
 }
 const nid=()=>S.targets.length?Math.max(...S.targets.map(t=>t.id))+1:1;   // номер = найбільший з активних + 1; коли цілей немає — знову 1
 const rollSpeed=type=>{const T=TYPES[type];return Math.round(rand(T.speed[0],T.speed[1])/5)*5;};
-function createTarget(type,towns,dirKey,status,prob,note,count,mult,origin,members){
+function createTarget(type,towns,dirKey,status,prob,note,count,mult,origin,members,straightAngle=null){
   const T=TYPES[type];
   const wps=towns.map(x=>({name:x[0],lat:x[1],lon:x[2],sub:x[5]||''}));
   let b,hold=false;
@@ -1254,6 +1260,7 @@ function createTarget(type,towns,dirKey,status,prob,note,count,mult,origin,membe
     b={lat:sp.lat,lon:sp.lon,hdg:bearing(sp.lat,sp.lon,wps[0].lat,wps[0].lon),idx:0};
   }
   const t={id:(S.nextId=nid()+1,nid()),infoUpdatedAt:Date.now(),type,wps,speed:rollSpeed(type),count:Math.max(1,Math.min(30,count||1)),mult:mult||S.mult,note:note||'',stopped:false,b,t0:Date.now(),hold,status:stOf({status}),prob:status==='predicted'?(prob||60):0};
+  if(Number.isFinite(straightAngle)){t.straight=true;t.straightAngle=straightAngle;t.wps=[];t.b.hdg=straightAngle;t.b.idx=0;t.hold=false;}
   t.members=members;hydrate(t);S.targets.push(t);addRuntime(t);renderList();tick();commit();
   return t;
 }
@@ -1288,26 +1295,28 @@ function setStraight(t,angle,liveEdit=false){
   if(!ADMIN||t.done||!Number.isFinite(angle)||angle<0||angle>359)return;
   const rt=RT.get(t.id);if(rt&&!Number.isFinite(rt.visualHdg))rt.visualHdg=t.hdg;
   rebase(t);t.straight=true;t.wps=[];t.idx=0;t.free=true;t.hold=false;
-  t.hdg=angle;t.b={lat:t.lat,lon:t.lon,hdg:angle,idx:0};t.infoUpdatedAt=Date.now();
+  t.straightAngle=angle;if(t.stopped)t.hdg=angle;
+  t.b={lat:t.lat,lon:t.lon,hdg:t.hdg,idx:0};t.infoUpdatedAt=Date.now();
   if(liveEdit){
     if(rt){syncLook(t,rt);fillPopup(t,rt.pop);}updateList();
     clearTimeout(angleSaveTimer);angleSaveTimer=setTimeout(()=>{angleSaveTimer=null;commit();},250);
   }else{clearTimeout(angleSaveTimer);angleSaveTimer=null;refreshTarget(t);}
 }
 addEventListener('pagehide',()=>{if(angleSaveTimer){clearTimeout(angleSaveTimer);angleSaveTimer=null;commit();}});
-function headingControls(t){
+function headingControls(t,creating=false){
   const box=document.createElement('div');box.className='heading-controls';
   box.innerHTML='<label>Кут, ° <input class="heading-number" type="number" min="0" max="359" step="1" aria-label="Кут курсу"></label><input class="heading-range" type="range" min="0" max="359" step="1" aria-label="Повернути ціль"><div class="heading-preview" aria-hidden="true"></div><small>0° Пн · 90° Сх · 180° Пд · 270° Зх</small><label class="heading-live"><input type="checkbox"> Оновлювати в реальному часі</label><button class="sm" type="button">Зберегти кут</button>';
   const number=box.querySelector('.heading-number'),range=box.querySelector('.heading-range'),preview=box.querySelector('.heading-preview'),live=box.querySelector('[type=checkbox]'),save=box.querySelector('button');
-  preview.innerHTML=SVG[t.type](tcol(t));let shown=t.hdg;
+  preview.innerHTML=SVG[t.type](tcol(t));let shown=t.straight&&Number.isFinite(t.straightAngle)?t.straightAngle:t.hdg;
   const valid=()=>number.value!==''&&number.checkValidity();
-  const update=v=>{number.value=v;range.value=v;shown+=((Number(v)-shown)%360+540)%360-180;preview.style.transform='rotate('+shown+'deg)';};update(Math.round(t.hdg)%360);
-  const applyLive=()=>{if(live.checked&&valid())setStraight(t,Number(number.value),true);};
+  const update=v=>{number.value=v;range.value=v;shown+=((Number(v)-shown)%360+540)%360-180;preview.style.transform='rotate('+shown+'deg)';};update(Math.round(shown)%360);
+  const applyLive=()=>{if(creating){M.straightAngle=valid()?Number(number.value):null;refreshModal(false);}else if(live.checked&&valid())setStraight(t,Number(number.value),true);};
   range.addEventListener('input',()=>{update(range.value);applyLive();});
-  number.addEventListener('input',()=>{if(valid()){update(number.value);applyLive();}});
-  live.addEventListener('change',()=>{save.hidden=live.checked;applyLive();});
+  number.addEventListener('input',()=>{if(valid()){update(number.value);applyLive();}else if(creating){M.straightAngle=null;refreshModal(false);}});
+  live.addEventListener('change',()=>{save.hidden=live.checked;});
   box.addEventListener('keydown',e=>e.stopPropagation());
   save.addEventListener('click',e=>{e.preventDefault();e.stopPropagation();if(!valid()){number.reportValidity();return;}setStraight(t,Number(number.value));if(box.closest('#modal'))closeModal();toast('Прямий курс збережено: '+number.value+'°');});
+  if(creating){live.closest('label').hidden=true;save.hidden=true;}
   return box;
 }
 function setSpeed(t,v){                          // ручна зміна швидкості цілі (км/год)
@@ -1348,7 +1357,7 @@ function splitOne(t){                             // відділити одну
   if(!ADMIN||t.done||cOf(t)<2)return;
   rebase(t);normalizeMembers(t);const splitType=t.members.pop();t.count=t.members.length;
   const p=moveBy(t.lat,t.lon,2500,(t.hdg+90)%360);
-  const n={id:nid(),infoUpdatedAt:infoTime(t),type:splitType,straight:!!t.straight,wps:t.wps.map(w=>({name:w.name,lat:w.lat,lon:w.lon,sub:w.sub||''})),speed:t.speed,count:1,mult:mOf(t),note:t.note||'',stopped:!!t.stopped,
+  const n={id:nid(),infoUpdatedAt:infoTime(t),type:splitType,straight:!!t.straight,straightAngle:t.straightAngle,wps:t.wps.map(w=>({name:w.name,lat:w.lat,lon:w.lon,sub:w.sub||''})),speed:t.speed,count:1,mult:mOf(t),note:t.note||'',stopped:!!t.stopped,
     b:{lat:p[0],lon:p[1],hdg:t.hdg,idx:t.idx},t0:Date.now(),hold:!!t.hold,status:stOf(t),prob:t.prob||0};
   hydrate(n);S.targets.push(n);addRuntime(n);
   refreshTarget(t);
@@ -1502,6 +1511,7 @@ function refreshModal(kick){
   sg.append(group);
  });
  $('#msave').disabled=!(M.mode==='edit'&&text===M.routeValue)&&(!parts.length||parts.some(p=>!p.town));
+ if(M.mode==='add'&&$('#create-straight').checked)$('#msave').disabled=!(Number.isFinite(M.straightAngle)&&(M.origin||parts[0]?.town));
  $('#mpeek').disabled=!parts.some(p=>p.town);
 }
 let kickT;
@@ -1510,7 +1520,7 @@ function openModal(mode,id){
   clearTimeout(kickT);PICK.clear();closeTargetSheet();M.mode=mode;M.id=id||null;M.origin=null;syncOrigin();
   if(!ADMIN)return;
   const t=id?live().find(x=>x.id===id):null;
-  $('#modal-straight').hidden=!t;$('#modal-straight').open=!!t;$('#modal-heading').replaceChildren();if(t)$('#modal-heading').append(headingControls(t));
+  $('#modal-straight').hidden=false;$('#modal-straight').open=true;$('#create-straight-label').hidden=!!t;$('#create-straight').checked=false;M.straightAngle=0;$('#modal-heading').replaceChildren();$('#modal-heading').append(headingControls(t||{type:M.type,hdg:0,status:'confirmed'},!t));
   if(t)M.type=t.type;
   M.count=t?cOf(t):1;M.members=t?membersOf(t):[M.type];M.mult=t?mOf(t):S.mult;
   M.status=t?stOf(t):DEFS.status;M.prob=t&&t.prob?t.prob:60;$('#mprob').value=M.prob;$('#mprobv').textContent=M.prob+'%';
@@ -1588,7 +1598,7 @@ function beginPick(mode){
 function finishPick(apply){
   if(apply&&pickCandidate){
     if(pickMode==='teleport'){teleportTarget(M.id,pickCandidate);}
-    else if(pickMode==='origin'){M.origin={...pickCandidate};syncOrigin();}
+    else if(pickMode==='origin'){M.origin={...pickCandidate};syncOrigin();refreshModal(false);}
     else{
       let number=1;while(PICK.has(stripKind('Точка карти '+number)))number++;
       const name='Точка карти '+number;
@@ -1613,7 +1623,7 @@ $('#pick-origin').addEventListener('click',()=>beginPick('origin'));
 $('#pick-route').addEventListener('click',()=>beginPick('route'));
 $('#pick-cancel').addEventListener('click',()=>finishPick(false));
 $('#pick-confirm').addEventListener('click',()=>{if(pickCandidate)finishPick(true);});
-$('#clear-origin').addEventListener('click',()=>{M.origin=null;syncOrigin();});
+$('#clear-origin').addEventListener('click',()=>{M.origin=null;syncOrigin();refreshModal(false);});
 const PV=L.layerGroup().addTo(map);
 let peeking=false;
 function pvIcon(label){
@@ -1693,6 +1703,7 @@ $('#add').addEventListener('click',()=>openModal('add'));
 $('#mcancel').addEventListener('click',closeModal);
 $('#modal').addEventListener('mousedown',e=>{if(e.target.id==='modal')closeModal();});
 document.addEventListener('keydown',e=>{if(e.key==='Escape'&&!$('#modal').hidden){if(pickMode)finishPick(false);else if(peeking)exitPeek();else closeModal();}});
+$('#create-straight').addEventListener('change',()=>{refreshModal(false);});
 $('#mroute').addEventListener('input',refreshModalSoon);
 $('#nsugg').addEventListener('click',e=>{const b=e.target.closest('button');if(b){$('#mnote').value=b.dataset.t;$('#mnote').focus();}});
 $('#mform').addEventListener('submit',e=>{
@@ -1700,10 +1711,13 @@ $('#mform').addEventListener('submit',e=>{
   const parts=parseRoute($('#mroute').value);
   if(!ADMIN)return;
   const preserveRoute=M.mode==='edit'&&$('#mroute').value===M.routeValue;
-  if(!preserveRoute&&(!parts.length||parts.some(p=>!p.town)))return;
-  const towns=parts.map(p=>p.town).filter((x,i,a)=>!i||x!==a[i-1]);
+  const createStraight=M.mode==='add'&&$('#create-straight').checked;
+  if(createStraight){if(!Number.isFinite(M.straightAngle)||!(M.origin||parts[0]?.town))return;}
+  else if(!preserveRoute&&(!parts.length||parts.some(p=>!p.town)))return;
+  let towns=parts.map(p=>p.town).filter(Boolean).filter((x,i,a)=>!i||x!==a[i-1]);
+  if(createStraight)towns=[M.origin?['Старт',M.origin.lat,M.origin.lng]:towns[0]];
   if(M.mode==='add'){
-    const t=createTarget(M.type,towns,$('#mdir').value,M.status,M.prob,$('#mnote').value.trim(),M.count,M.mult,M.origin,M.members);
+    const t=createTarget(M.type,towns,createStraight?'first':$('#mdir').value,M.status,M.prob,$('#mnote').value.trim(),M.count,M.mult,M.origin,M.members,createStraight?M.straightAngle:null);
     toast(`${nameOf(t)} #${t.id} → ${towns.map(x=>x[0]).join(' → ')}`);
   } else {
     const t=live().find(x=>x.id===M.id);
@@ -1777,10 +1791,15 @@ function applyData(d){
       t.infoUpdatedAt=infoTime(x);
       incoming.delete(t.id);continue;
     }
+    if(x){
+      Object.assign(t,{...x,infoUpdatedAt:infoTime(x),status:stOf(x),sig:sigOf(x)});hydrate(t);
+      const rt=RT.get(t.id);if(rt){rt.visualHdg=t.hdg;syncLook(t,rt);fillPopup(t,rt.pop);}else if(!t.done)addRuntime(t);
+      incoming.delete(t.id);continue;
+    }
     dropRuntime(t.id);S.targets.splice(S.targets.indexOf(t),1);
   }
   for(const x of incoming.values()){
-    const t={id:x.id,targetKey:x.targetKey,infoUpdatedAt:infoTime(x),type:x.type,straight:!!x.straight,wps:x.wps,speed:x.speed,count:x.count||1,members:x.members,mult:x.mult||S.mult,b:x.b,t0:x.t0,hold:!!x.hold,stopped:!!x.stopped,note:x.note||'',status:stOf(x),prob:x.prob||0,sig:sigOf(x)};
+    const t={id:x.id,targetKey:x.targetKey,infoUpdatedAt:infoTime(x),type:x.type,straight:!!x.straight,straightAngle:x.straightAngle,wps:x.wps,speed:x.speed,count:x.count||1,members:x.members,mult:x.mult||S.mult,b:x.b,t0:x.t0,hold:!!x.hold,stopped:!!x.stopped,note:x.note||'',status:stOf(x),prob:x.prob||0,sig:sigOf(x)};
     hydrate(t);S.targets.push(t);if(!t.done)addRuntime(t,visualHeadings.get(t.id)??t.hdg);
   }
   const na={};for(const r of RAIONS){const x=(d.alarm||{})[r.id]||{};na[r.id]={lvl:+x.lvl||0,since:x.since||null};}
@@ -2161,7 +2180,7 @@ function frame(now){
     mel.classList.toggle('is-hold',!!t.hold);mel.classList.toggle('is-stopped',!!t.stopped);
     const cd=ADMIN&&!!t.stopped&&!captureMode;if(rt.canDrag!==cd){rt.canDrag=cd;if(cd)rt.marker.dragging.enable();else rt.marker.dragging.disable();}
     const nn=t.note||'';if(rt.note!==nn){rt.note=nn;rt.noteEl.textContent=nn;}
-    rt.visualHdg=smoothIconHeading(rt.visualHdg,t.hdg,dtr,membersOf(t).includes('jet'));
+    rt.visualHdg=t.hdg;
     rt.rot.style.transform=`rotate(${rt.visualHdg}deg)`;
     rt.line.setLatLngs(courseLL(t,rt.visualHdg));
     if(pushTrail){rt.tp.push([t.lat,t.lon]);if(rt.tp.length>70)rt.tp.shift();rt.trail.setLatLngs(rt.tp);}
