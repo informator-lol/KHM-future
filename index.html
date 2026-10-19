@@ -478,6 +478,12 @@ body:not(.is-admin) #comments-form,body:not(.is-admin) .comment-post button{disp
 .pinfo .pspeed input,.pinfo select,.heading-controls input[type=number]{background:#0d1823;color:#edf3fa;border:1px solid #3b4d60;border-radius:10px;min-height:40px;padding:8px 10px;box-sizing:border-box;font:inherit;color-scheme:dark}
 .pinfo .pspeed{justify-content:space-between;padding:10px 0}.status-label{width:100%;display:grid;gap:8px;font-size:12px;color:#b7c7d8}.status-label select{width:100%}
 .straight-editor{border:1px solid #34475b;border-radius:12px;padding:12px;margin:12px 0}.straight-editor summary{cursor:pointer;font-weight:600;font-size:13px}.straight-editor.pa{display:block}.heading-controls{display:grid;gap:12px;padding-top:12px}.heading-controls label{display:flex;align-items:center;justify-content:space-between;gap:8px;font-size:12px}.heading-controls input[type=number]{width:85px}.heading-controls input[type=range]{width:100%;accent-color:#ff941f}.heading-controls small{color:#a8b9ca;line-height:1.5}.heading-preview{justify-self:center;font-size:36px;line-height:1;color:#ff941f}.heading-controls button{min-height:40px}
+/* Compact target controls: remove accumulated margins from older popup styles. */
+.tpop .leaflet-popup-content{box-sizing:border-box;width:292px!important;margin:0;padding:14px 12px;max-height:70vh;max-width:calc(100vw - 40px)}
+.pinfo .pa{margin-top:8px;gap:6px}.pinfo dl{margin:10px 0}.pinfo .pspeed{padding:0;min-height:34px}.pinfo .pspeed input{min-height:34px!important;padding:5px 8px!important;width:80px!important}
+.pinfo .status-label{display:flex;align-items:center;justify-content:space-between;gap:8px}.pinfo .status-label select{width:170px;max-width:70%;min-height:34px;padding:5px 8px}
+.pinfo .pa.straight-editor{display:block;padding:9px;margin:8px 0}.heading-controls{gap:8px;padding-top:8px}.heading-controls button{min-height:34px}.heading-controls .heading-live{justify-content:flex-start;font-size:11px;line-height:1.4}.heading-live input{width:15px;height:15px;accent-color:#ff941f;flex:none}.heading-preview{transition:transform .5s ease;line-height:0}.heading-controls small{font-size:10px}.heading-controls [hidden]{display:none!important}
+.pinfo .freshness-controls{display:grid;grid-template-columns:1fr auto;padding-bottom:8px}.freshness-controls [data-a=info-now]{grid-column:1/-1}.pinfo .freshness-controls label{width:auto;gap:4px;font-size:10px;min-width:0}.freshness-controls .info-minutes{width:45px;min-height:30px;box-sizing:border-box}.pinfo .freshness-controls [data-a=info-age]{padding:5px 7px;font-size:10px}.pinfo .info-age{padding:7px 9px;margin:6px 0}.pinfo .hint{font-size:10px;line-height:1.45}
 </style>
 <link rel="icon" type="image/png" href="./favicon.png?v=1">
 <link rel="apple-touch-icon" href="./favicon.png?v=1">
@@ -1106,7 +1112,7 @@ function buildPopup(t){
   <dt>Поблизу</dt><dd data-f="near"></dd><dt>Район</dt><dd data-f="raion"></dd><dt>Область</dt><dd data-f="oblast"></dd></dl>
   <div class="pa pnote"><input type="text" class="cm" maxlength="120" placeholder="Коментар: напр. стоїть на Деражні" spellcheck="false"><button type="button" class="sm" data-a="chip" data-t="Локаційно втрачений" style="flex:none;font-size:11.5px">Локаційно втрачений</button></div>
   <div class="pa pspeed" style="display:flex;align-items:center;gap:8px;flex:1 1 100%"><label style="font-size:12px;opacity:.8">Швидкість, км/год</label><input type="number" class="spdin" min="1" max="3000" step="5" inputmode="numeric" style="width:90px;padding:6px 8px;font-size:13px"></div>
-  <div class="pa"><label class="status-label">Стан цілі<select class="target-status">${["confirmed","locating","untracked","predicted"].map(k=>`<option value="${k}">${ST[k].name}</option>`).join('')}</select></label></div><details class="pa straight-editor"><summary>↗ Задати прямий курс</summary></details>
+  <div class="pa"><label class="status-label">Стан цілі<select class="target-status">${["confirmed","locating","untracked"].map(k=>`<option value="${k}">${ST[k].name}</option>`).join('')}</select></label></div><details class="pa straight-editor"><summary>↗ Задати прямий курс</summary></details>
   <div class="pa ptypes">${ORDER.map(k=>`<button type="button" class="sm" data-a="type" data-k="${k}" title="Змінити тип на: ${TYPES[k].name}">${SVG[k]('#cfd6df')}<span>${TYPES[k].name}</span></button>`).join('')}</div>
   <span class="pa pl">Швидкість часу цієї цілі</span>
   <div class="pa pmult">${MULTS.map(m=>`<button type="button" class="sm" data-a="mult" data-m="${m}">×${m}</button>`).join('')}</div>
@@ -1194,7 +1200,7 @@ function syncLook(t,rt){
   rt.line.setStyle({color:col,dashArray:pred?'4 7':null,weight:pred?1.6:2.4,opacity:untracked?.45:pred?.8:.95});
   rt.trail.setStyle({color:col});
 }
-function addRuntime(t){
+function addRuntime(t,visualHdg=t.hdg){
   const T=TYPES[t.type],col=tcol(t);
   const isz=iconSize(t);
   const icon=L.divIcon({className:'tgt'+(cOf(t)>1?' grp':''),iconSize:[isz,isz],iconAnchor:[isz/2,isz/2],html:`<div class="ring" style="--c:${col}"></div><div class="rot" style="--c:${col}">${iconHTML(t,col)}</div><svg class="harrow" viewBox="0 0 24 28" width="22" height="26" aria-hidden="true" style="--c:${col}"><path d="M12 26 L2 12 H8 V2 H16 V12 H22 Z" fill="${col}" stroke="#0b0e12" stroke-width="1.6" stroke-linejoin="round"/></svg><span class="tid">${t.id}</span><b class="cnt"></b><b class="qm">?</b><span class="tnote"></span><span class="tupdated"></span>`});
@@ -1206,7 +1212,7 @@ function addRuntime(t){
   marker.bindPopup(pop,{className:'tpop',offset:[0,-8],autoPanPadding:[30,30]});
   marker.on('click',()=>{if(captureMode&&ADMIN)toggleCapture(t.id);});
   marker.on('popupopen',()=>{if(captureMode){marker.closePopup();return;}fillPopup(t,pop);if(innerWidth<=720)showTargetSheet(t,rt);else{const details=pop.querySelector('.mobile-details');if(details)details.open=true;}});
-  const rt={marker,line,trail,tp:[],pop,rot:marker.getElement().querySelector('.rot'),noteEl:marker.getElement().querySelector('.tnote'),canDrag:false,dragging:false,note:''};
+  const rt={marker,line,trail,tp:[],pop,visualHdg,rot:marker.getElement().querySelector('.rot'),noteEl:marker.getElement().querySelector('.tnote'),canDrag:false,dragging:false,note:''};
   RT.set(t.id,rt);
   marker.on('dragstart',()=>{rt.dragging=true;});
   marker.on('dragend',()=>{                    // «телепорт»: нова точка стає початком руху, курс (маршрут) зберігається
@@ -1223,8 +1229,8 @@ function addRuntime(t){
   marker.getElement().classList.toggle('is-hold',!!t.hold);
   marker.getElement().classList.toggle('is-stopped',!!t.stopped);
   rt.noteEl.textContent=rt.note=t.note||'';
-  rt.rot.style.transform=`rotate(${t.hdg}deg)`;
-  line.setLatLngs(courseLL(t));
+  rt.rot.style.transform=`rotate(${rt.visualHdg}deg)`;
+  line.setLatLngs(courseLL(t,rt.visualHdg));
 }
 const nid=()=>S.targets.length?Math.max(...S.targets.map(t=>t.id))+1:1;   // номер = найбільший з активних + 1; коли цілей немає — знову 1
 const rollSpeed=type=>{const T=TYPES[type];return Math.round(rand(T.speed[0],T.speed[1])/5)*5;};
@@ -1272,20 +1278,31 @@ function setTargetStatus(t,status){
   if(!ADMIN||t.done)return;
   t.status=stOf({status});t.infoUpdatedAt=Date.now();refreshTarget(t);
 }
-function setStraight(t,angle){
+let angleSaveTimer=null;
+function setStraight(t,angle,liveEdit=false){
   if(!ADMIN||t.done||!Number.isFinite(angle)||angle<0||angle>359)return;
+  const rt=RT.get(t.id);if(rt&&!Number.isFinite(rt.visualHdg))rt.visualHdg=t.hdg;
   rebase(t);t.straight=true;t.wps=[];t.idx=0;t.free=true;t.hold=false;
   t.hdg=angle;t.b={lat:t.lat,lon:t.lon,hdg:angle,idx:0};t.infoUpdatedAt=Date.now();
-  refreshTarget(t);
+  if(liveEdit){
+    if(rt){syncLook(t,rt);fillPopup(t,rt.pop);}updateList();
+    clearTimeout(angleSaveTimer);angleSaveTimer=setTimeout(()=>{angleSaveTimer=null;commit();},250);
+  }else{clearTimeout(angleSaveTimer);angleSaveTimer=null;refreshTarget(t);}
 }
+addEventListener('pagehide',()=>{if(angleSaveTimer){clearTimeout(angleSaveTimer);angleSaveTimer=null;commit();}});
 function headingControls(t){
   const box=document.createElement('div');box.className='heading-controls';
-  box.innerHTML='<label>Прямий курс · градуси <input class="heading-number" type="number" min="0" max="359" step="1" aria-label="Кут курсу"></label><input class="heading-range" type="range" min="0" max="359" step="1" aria-label="Повернути ціль"><div class="heading-preview" aria-hidden="true">↑</div><small>0° — північ · 90° — схід · 180° — південь · 270° — захід</small><button class="sm" type="button">Зберегти прямий курс</button>';
-  const number=box.querySelector('.heading-number'),range=box.querySelector('.heading-range'),preview=box.querySelector('.heading-preview');preview.innerHTML=SVG[t.type](tcol(t));
-  const update=v=>{number.value=v;range.value=v;preview.style.transform='rotate('+v+'deg)';};update(Math.round(t.hdg)%360);
-  range.addEventListener('input',()=>update(range.value));number.addEventListener('input',()=>{if(number.value!==''&&number.checkValidity()){range.value=number.value;preview.style.transform='rotate('+number.value+'deg)';}});
+  box.innerHTML='<label>Кут, ° <input class="heading-number" type="number" min="0" max="359" step="1" aria-label="Кут курсу"></label><input class="heading-range" type="range" min="0" max="359" step="1" aria-label="Повернути ціль"><div class="heading-preview" aria-hidden="true"></div><small>0° Пн · 90° Сх · 180° Пд · 270° Зх</small><label class="heading-live"><input type="checkbox"> Оновлювати в реальному часі</label><button class="sm" type="button">Зберегти кут</button>';
+  const number=box.querySelector('.heading-number'),range=box.querySelector('.heading-range'),preview=box.querySelector('.heading-preview'),live=box.querySelector('[type=checkbox]'),save=box.querySelector('button');
+  preview.innerHTML=SVG[t.type](tcol(t));let shown=t.hdg;
+  const valid=()=>number.value!==''&&number.checkValidity();
+  const update=v=>{number.value=v;range.value=v;shown+=((Number(v)-shown)%360+540)%360-180;preview.style.transform='rotate('+shown+'deg)';};update(Math.round(t.hdg)%360);
+  const applyLive=()=>{if(live.checked&&valid())setStraight(t,Number(number.value),true);};
+  range.addEventListener('input',()=>{update(range.value);applyLive();});
+  number.addEventListener('input',()=>{if(valid()){update(number.value);applyLive();}});
+  live.addEventListener('change',()=>{save.hidden=live.checked;applyLive();});
   box.addEventListener('keydown',e=>e.stopPropagation());
-  box.querySelector('button').addEventListener('click',e=>{e.preventDefault();e.stopPropagation();if(number.value===''||!number.checkValidity()){number.reportValidity();return;}setStraight(t,Number(number.value));if(box.closest('#modal'))closeModal();toast('Прямий курс збережено: '+number.value+'°');});
+  save.addEventListener('click',e=>{e.preventDefault();e.stopPropagation();if(!valid()){number.reportValidity();return;}setStraight(t,Number(number.value));if(box.closest('#modal'))closeModal();toast('Прямий курс збережено: '+number.value+'°');});
   return box;
 }
 function setSpeed(t,v){                          // ручна зміна швидкості цілі (км/год)
@@ -1488,7 +1505,7 @@ function openModal(mode,id){
   clearTimeout(kickT);PICK.clear();closeTargetSheet();M.mode=mode;M.id=id||null;M.origin=null;syncOrigin();
   if(!ADMIN)return;
   const t=id?live().find(x=>x.id===id):null;
-  $('#modal-straight').hidden=!t;$('#modal-heading').replaceChildren();if(t)$('#modal-heading').append(headingControls(t));
+  $('#modal-straight').hidden=!t;$('#modal-straight').open=!!t;$('#modal-heading').replaceChildren();if(t)$('#modal-heading').append(headingControls(t));
   if(t)M.type=t.type;
   M.count=t?cOf(t):1;M.members=t?membersOf(t):[M.type];M.mult=t?mOf(t):S.mult;
   M.status=t?stOf(t):DEFS.status;M.prob=t&&t.prob?t.prob:60;$('#mprob').value=M.prob;$('#mprobv').textContent=M.prob+'%';
@@ -1738,6 +1755,7 @@ function tick(){
 /* Прийняти стан (з Firestore або localStorage): додати нові цілі, прибрати зниклі,
    перерахувати ті, чий маршрут чи час старту змінився. */
 function applyData(d){
+  const visualHeadings=new Map([...RT].map(([id,rt])=>[id,rt.visualHdg]));
   const selectedId=mobileTargetId??[...RT].find(([,rt])=>rt.marker.isPopupOpen())?.[0]??null;
   const wasSheet=mobileTargetId!=null,sheetScroll=wasSheet?$('#sheet-content').scrollTop:(RT.get(selectedId)?.marker.getPopup()?.getElement()?.querySelector('.leaflet-popup-content')?.scrollTop||0);
   const selectedRT=selectedId!=null?RT.get(selectedId):null;
@@ -1758,7 +1776,7 @@ function applyData(d){
   }
   for(const x of incoming.values()){
     const t={id:x.id,infoUpdatedAt:infoTime(x),type:x.type,straight:!!x.straight,wps:x.wps,speed:x.speed,count:x.count||1,members:x.members,mult:x.mult||S.mult,b:x.b,t0:x.t0,hold:!!x.hold,stopped:!!x.stopped,note:x.note||'',status:stOf(x),prob:x.prob||0,sig:sigOf(x)};
-    hydrate(t);S.targets.push(t);if(!t.done)addRuntime(t);
+    hydrate(t);S.targets.push(t);if(!t.done)addRuntime(t,visualHeadings.get(t.id)??t.hdg);
   }
   const na={};for(const r of RAIONS){const x=(d.alarm||{})[r.id]||{};na[r.id]={lvl:+x.lvl||0,since:x.since||null};}
   if(alarmSeen)announce(S.alarm,na);alarmSeen=true;
