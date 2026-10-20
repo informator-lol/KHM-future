@@ -496,6 +496,8 @@ body.is-admin #about-link{display:none!important}
 @keyframes comments-enter{from{opacity:0;transform:translateY(18px) scale(.98)}to{opacity:1;transform:translateY(0) scale(1)}}
 @media(prefers-reduced-motion:reduce){#comments-panel:not([hidden]){animation:none}}
 .region-heading{font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:#b9cde0;margin:18px 0 8px}
+.rl{display:block!important}.rl>div{background:none;border:0;border-radius:0;padding:0;text-shadow:0 1px 3px #07111d,0 0 5px #07111d}.rl b{font:600 11px/1.2 system-ui;color:#ecf0e9;letter-spacing:.02em}.oblast-label{pointer-events:none}.oblast-label>span{position:absolute;transform:translate(-50%,-50%);white-space:nowrap;color:#ecf1e8;text-align:center;font:650 14px/1.4 system-ui;letter-spacing:.06em;text-shadow:0 1px 4px #08121d,0 0 6px #08121d}.oblast-label small{display:block;font:500 10px/1.4 system-ui;letter-spacing:.1em;opacity:.75}
+.alert-mode-card{padding:12px;border:1px solid #344a61;border-radius:12px;background:#142536}.alert-mode-card b{font-size:12px;color:#bce4ff}.alert-mode-card p{font-size:11px;color:#a7bbce;line-height:1.5;margin:7px 0}.alert-mode-card button{margin-top:5px;width:100%;font-size:11px}.manual-alerts .alert-mode-card{border-color:#a77d3d}.manual-alerts .alert-mode-card b{color:#ffd496}#district-status>summary{cursor:pointer;font-size:12px;color:#b8cce0;padding:10px 0}body:not(.manual-alerts) #raions select{display:none}body:not(.manual-alerts) #raions .rrow{grid-template-columns:auto 1fr}
 </style>
 <link rel="icon" type="image/png" href="./favicon.png?v=1">
 <link rel="apple-touch-icon" href="./favicon.png?v=1">
@@ -562,18 +564,10 @@ body.is-admin #about-link{display:none!important}
         <div class="actions"><button type="button" class="ghost" id="capture-cancel">Скасувати</button><button type="button" class="primary" id="capture-create" disabled>Створити PNG</button></div>
       </div>
     </section>
-    <section>
-      <h2>Райони</h2>
-      <div id="raions"></div>
-      <label class="chk"><input type="checkbox" id="auto" checked> Авто-рівні за цілями</label>
-      <p class="hint">Авто: район із ціллю — червоний, район на маршруті — оранжевий, ціль ще за межами області — жовтий. Ручний рівень не знижується нижче вибраного.</p>
-    </section>
     <section id="alsec">
-      <h2>Автоматичні тривоги</h2>
-      <label class="chk"><input type="checkbox" id="alOn"> Оновлювати тривоги без API-ключа</label>
-      <p class="hint" id="alSt" role="status"></p>
-      <p class="hint">Джерело: <a href="https://tryvoha.online/" target="_blank" rel="noopener">Tryvoha.online</a> · неофіційний сервіс. Перевірка кожні 30 секунд, поки карта відкрита в адміністратора. Тривога по області застосовується лише до районів цієї області.</p>
-      <p class="hint">Ручні рівні та рівні від цілей можуть залишити район підсвіченим після відбою. Коли автооновлення вимкнено, зовнішні тривоги не впливають на карту. При втраті зв’язку з увімкненим автооновленням останній стан зберігається.</p>
+      <h2>Тривоги</h2><div class="alert-mode-card"><b id="alert-mode-title">Автоматично · Tryvoha.online</b><p id="alert-mode-description">Рівні районів оновлюються з сервісу.</p><p id="alSt" role="status"></p><button type="button" class="ghost" id="alert-mode-toggle">Перейти на ручне керування</button></div>
+      <p class="hint">Джерело: <a href="https://tryvoha.online/" target="_blank" rel="noopener">Tryvoha.online</a>. При помилці зв’язку зберігаємо останній стан.</p>
+      <details id="district-status"><summary id="district-status-title">Стан районів</summary><div id="raions"></div></details>
     </section>
     <section>
       <button class="primary" id="add">＋ Додати ціль</button>
@@ -945,14 +939,14 @@ const nameOf=t=>new Set(membersOf(t)).size>1?'Змішана група ×'+cOf(
 /* ───────── рівні загрози ───────── */
 const LV = [
   {k:0,name:'Немає загрози',c:'#3ddc84',stroke:'#5b6675',fo:.04,w:1.5,dash:'5 6'},
-  {k:1,name:'Жовтий',       c:'#f5c518',stroke:'#f5c518',fo:.30,w:2,dash:null},
-  {k:2,name:'Оранжевий',    c:'#ff8a1f',stroke:'#ff8a1f',fo:.38,w:2,dash:null},
-  {k:3,name:'Червоний',     c:'#ff3b3b',stroke:'#ff3b3b',fo:.42,w:2.5,dash:null},
+  {k:1,name:'Жовтий',       c:'#f5c518',stroke:'#f5c518',fo:.20,w:2,dash:null},
+  {k:2,name:'Оранжевий',    c:'#ff8a1f',stroke:'#ff8a1f',fo:.26,w:2,dash:null},
+  {k:3,name:'Червоний',     c:'#ff3b3b',stroke:'#ff3b3b',fo:.30,w:2.5,dash:null},
 ];
 
 /* ───────── стан ───────── */
 const KEY='khm-sim-v3';
-let S={mult:1,auto:true,nextId:1,targets:[],raions:Object.fromEntries(RAIONS.map(r=>[r.id,{manual:0,since:null}])),
+let S={mult:1,auto:false,alertMode:'auto',nextId:1,targets:[],raions:Object.fromEntries(RAIONS.map(r=>[r.id,{manual:0,since:null}])),
   alarm:Object.fromEntries(RAIONS.map(r=>[r.id,{lvl:0,since:null}])),alarmMeta:{on:false,t:0}};
 let ADMIN=!USE_FB;           // локальний режим: власник сторінки = адмін
 let stateReady=false,remoteReady=false,pendingSave=null,saveWarning=false;
@@ -1001,7 +995,7 @@ function setInfoAge(t,minutes=0){
 function rebase(t){catchUp(t);t.b={lat:t.lat,lon:t.lon,hdg:t.hdg,idx:t.idx};t.t0=Date.now();t.simDone=0;}
 
 function serialize(){
-  return JSON.parse(JSON.stringify({auto:S.auto,mult:S.mult,nextId:S.nextId,raions:S.raions,alarm:S.alarm,alarmMeta:S.alarmMeta,
+  return JSON.parse(JSON.stringify({auto:false,alertMode:S.alertMode,mult:S.mult,nextId:S.nextId,raions:S.raions,alarm:S.alarm,alarmMeta:S.alarmMeta,
     targets:live().map(t=>{const x={id:t.id,targetKey:t.targetKey||String(t.id)+'-'+String(t.t0),type:t.type,straight:!!t.straight,straightAngle:Number.isFinite(t.straightAngle)?t.straightAngle:t.hdg,wps:t.wps,speed:t.speed,b:t.b,t0:t.t0,hold:!!t.hold,status:stOf(t),prob:t.prob||0,stopped:!!t.stopped,note:t.note||'',infoUpdatedAt:infoTime(t),count:cOf(t),members:membersOf(t),mult:mOf(t)};t.sig=sigOf(x);return x;})}));
 }
 function storeLocal(d){
@@ -1122,6 +1116,20 @@ for(const oblast of ['vinnicka-oblast','zitomirska-oblast']){
  const area=ADMIN_AREAS.oblasts.find(a=>a.n===REGION_NAMES[oblast]);
  L.geoJSON({type:'Feature',geometry:{type:'MultiPolygon',coordinates:area.p}},{style:{fill:false,color:'#cbd6e2',weight:2,opacity:.8},interactive:false}).addTo(map);
 }
+const oblastLabels=[['Хмельницька',49.65,26.95],['Вінницька',48.95,28.65],['Житомирська',50.75,28.45]].map(([name,lat,lon])=>L.marker([lat,lon],{interactive:false,keyboard:false,icon:L.divIcon({className:'oblast-label',html:'<span>'+name+'<small>область</small></span>',iconSize:[0,0]})}).addTo(map));
+function layoutRegionLabels(){
+ const detailed=map.getZoom()>=8.5;
+ for(const label of oblastLabels){const el=label.getElement();if(el)el.style.visibility=detailed?'hidden':'visible';}
+ const used=[];
+ for(const r of [...RAIONS].sort((a,b)=>b.eff-a.eff)){
+   const el=r.lbl.getElement();if(!el)continue;
+   el.style.visibility='hidden';if(!detailed)continue;
+   const content=el.firstElementChild;if(!content)continue;const b=content.getBoundingClientRect();
+   if(used.some(a=>b.left<a.right+12&&b.right+12>a.left&&b.top<a.bottom+8&&b.bottom+8>a.top))continue;
+   used.push(b);el.style.visibility='visible';
+ }
+}
+map.on('zoomend moveend',layoutRegionLabels);
 // Settlement names are supplied by the OSM tiles: no duplicate offset labels.
 
 function styleRaion(r){
@@ -1130,7 +1138,7 @@ function styleRaion(r){
 }
 function labelRaion(r,since){
   const el=r.lbl.getElement();if(!el)return;
-  el.innerHTML=`<div><b>${r.name}</b><small>район</small>${r.eff>0&&since?`<span>${fmtDur(Date.now()-since)}</span>`:''}</div>`;
+  el.innerHTML=`<div><b>${r.name}</b></div>`;
 }
 
 /* ───────── цілі на карті ───────── */
@@ -1427,11 +1435,10 @@ for(const r of RAIONS){
   const row=document.createElement('div');row.className='rrow';
   row.innerHTML=`<i class="dot"></i><div><b>${r.name}</b><small>—</small></div><select aria-label="Рівень загрози: ${r.name}">${LV.map(l=>`<option value="${l.k}">${l.name}</option>`).join('')}</select>`;
   const sel=row.querySelector('select');sel.value=S.raions[r.id].manual;
-  sel.addEventListener('change',()=>{if(!ADMIN)return;S.raions[r.id].manual=+sel.value;tick();commit();});
+  sel.addEventListener('change',()=>{if(!ADMIN||S.alertMode!=='manual')return;S.raions[r.id].manual=+sel.value;tick();commit();});
   r.row=row;r.sel=sel;rbox.appendChild(row);
 }
-$('#auto').checked=S.auto;
-$('#auto').addEventListener('change',e=>{if(!ADMIN)return;S.auto=e.target.checked;tick();commit();});
+
 $('#modeLbl').textContent=USE_FB?'онлайн':'локальний режим';
 $('#collapse').addEventListener('click',()=>{const p=$('#panel');p.classList.toggle('collapsed');$('#collapse').textContent=p.classList.contains('collapsed')?'▸':'▾';});
 
@@ -1773,9 +1780,9 @@ function autoLevels(){
   return a;
 }
 function tick(){
-  const au=autoLevels();let dirty=false;
+  const au=Object.fromEntries(RAIONS.map(r=>[r.id,0]));let dirty=false;
   for(const r of RAIONS){
-    const st=S.raions[r.id],al=(S.alarmMeta.on&&S.alarm[r.id])||{lvl:0,since:null},eff=Math.max(st.manual,au[r.id],al.lvl);
+    const st=S.raions[r.id],al=(S.alertMode!=='manual'&&S.alarm[r.id])||{lvl:0,since:null},eff=S.alertMode==='manual'?st.manual:al.lvl;
     // момент початку тривоги веде адмін (і записує для всіх); глядач без адміна рахує від першого побачення
     if(ADMIN){
       if(eff>0&&!st.since){st.since=Date.now();dirty=true;}
@@ -1792,6 +1799,7 @@ function tick(){
     r.row.style.setProperty('--c',LV[eff].c);
     r.row.querySelector('small').textContent=LV[eff].name+(since?' · '+fmtDur(Date.now()-since):'')+(au[r.id]>st.manual&&au[r.id]>0?' · авто':'')+(al.lvl>0&&al.lvl===eff?' · Tryvoha.online':'');
   }
+  layoutRegionLabels();
   updateList();
   for(const [id,rt] of RT){const t=live().find(x=>x.id===id);if(!t)continue;renderInfoAge(t,rt.marker.getElement()?.querySelector('.tupdated'));if(rt.marker.isPopupOpen()||mobileTargetId===id)fillPopup(t,rt.pop);}
   const d=new Date();$('#clock').textContent=`${pad2(d.getDate())}/${pad2(d.getMonth()+1)}/${String(d.getFullYear()).slice(2)}, ${pad2(d.getHours())}:${pad2(d.getMinutes())}`;
@@ -1808,7 +1816,7 @@ function applyData(d){
   const selectedRT=selectedId!=null?RT.get(selectedId):null;
   const input=selectedRT?.pop.querySelector('.cm');
   const draft=input&&document.activeElement===input?{value:input.value,start:input.selectionStart,end:input.selectionEnd}:null;
-  S.auto=d.auto!==false;S.mult=d.mult||1;S.nextId=Math.max(S.nextId,d.nextId||1);
+  S.auto=false;S.alertMode=d.alertMode==='manual'?'manual':'auto';S.mult=d.mult||1;S.nextId=Math.max(S.nextId,d.nextId||1);
   for(const r of RAIONS){const x=(d.raions||{})[r.id]||{};S.raions[r.id]={manual:x.manual||0,since:x.since||null};}
   const incoming=new Map((d.targets||[]).map(x=>[x.id,x]));
   for(const t of [...S.targets]){
@@ -1834,7 +1842,7 @@ function applyData(d){
   if(alarmSeen)announce(S.alarm,na);alarmSeen=true;
   S.alarm=na;S.alarmMeta={on:!!d.alarmMeta?.on,t:+d.alarmMeta?.t||0,source:d.alarmMeta?.source||'',error:typeof d.alarmMeta?.error==='string'?d.alarmMeta.error:''};
   RAIONS.forEach(r=>{r.sel.value=S.raions[r.id].manual;});
-  $('#auto').checked=S.auto;syncMult();renderList();tick();flushSpeedMigration();
+  renderAlertMode();if(AL.on!==(S.alertMode!=='manual'))alSync();syncMult();renderList();tick();flushSpeedMigration();
   if(selectedId!=null&&(wasSheet?mobileTargetId!==selectedId:!RT.get(selectedId)?.marker.isPopupOpen())){
     const selected=live().find(t=>t.id===selectedId),rt=RT.get(selectedId);
     if(selected&&rt){
@@ -1851,7 +1859,7 @@ function setAdmin(v){
 }
 /* Автотривога: public Tryvoha.online API, no token. */
 const AL={URL:'https://tryvoha.online/api/v1/alerts',EVERY:30000,on:true,timer:null,busy:false,err:'',ok:null,controller:null,epoch:0};
-try{AL.on=localStorage.getItem('khm-tryvoha-on')!=='0';}catch(_){}
+
 let alarmSeen=!USE_FB;
 const hms=ms=>{const d=new Date(ms);return pad2(d.getHours())+':'+pad2(d.getMinutes())+':'+pad2(d.getSeconds());};
 const ALERT_REGIONS={'sepetivskii-raion':'shepetivskyi','xmelnickii-raion':'khmelnytskyi','kamianec-podilskii-raion':'kamianets',...Object.fromEntries(EXTRA_DISTRICTS.map(d=>[d.id,d.id]))};
@@ -1911,29 +1919,36 @@ async function alPoll(){
   }
 }
 function alStatus(){
-  $('#alSt').textContent=!AL.on?'Автотривогу вимкнено.'
+  $('#alSt').textContent=!AL.on?'Резервний режим · рівні задає адміністратор.'
     :!ADMIN?'Оновлення надходять від адміністратора.'
     :AL.err?'⚠ Дані недоступні: '+AL.err+'. Збережено останній стан; це не відбій.'
     :AL.ok?'✓ Оновлено о '+hms(AL.ok)+' · перевірка кожні 30 с · без API-ключа'
     :'Отримую стан тривог…';
 }
 function alSync(){
+  AL.on=S.alertMode!=='manual';
   AL.epoch++;if(AL.controller)AL.controller.abort();AL.controller=null;AL.busy=false;
   clearInterval(AL.timer);AL.timer=null;
   if(ADMIN&&AL.on){alPoll();AL.timer=setInterval(alPoll,AL.EVERY);}
   alStatus();
 }
-$('#alOn').checked=AL.on;
-$('#alOn').addEventListener('change',e=>{
-  if(!ADMIN)return;
-  AL.on=e.target.checked;try{localStorage.setItem('khm-tryvoha-on',AL.on?'1':'0');}catch(_){}
-  AL.err='';AL.ok=null;
-  if(!AL.on){
-    S.alarmMeta={...S.alarmMeta,on:false,error:''};tick();commit();
-    toast('Автооновлення вимкнено. Діють ручні рівні та авто-рівні за цілями.');
-  }
-  alSync();
+function renderAlertMode(){
+ const manual=S.alertMode==='manual';
+ $('#alert-mode-title').textContent=manual?'Ручне керування · резервний режим':'Автоматично · Tryvoha.online';
+ $('#alert-mode-description').textContent=manual?'Задайте потрібний рівень для кожного району нижче.':'Рівні районів оновлюються з сервісу кожні 30 секунд.';
+ $('#alert-mode-toggle').textContent=manual?'Повернути автоматичне оновлення':'Перейти на ручне керування';
+ $('#district-status-title').textContent=manual?'Керування районами':'Стан районів';
+ document.body.classList.toggle('manual-alerts',manual);
+ for(const r of RAIONS)r.sel.disabled=!manual;
+}
+$('#alert-mode-toggle').addEventListener('click',()=>{
+ if(!ADMIN)return;
+ const manual=S.alertMode!=='manual';
+ if(manual)for(const r of RAIONS){const a=S.alarm[r.id]||{lvl:0,since:null};S.raions[r.id]={manual:a.lvl,since:a.since};r.sel.value=a.lvl;}
+ S.alertMode=manual?'manual':'auto';S.auto=false;
+ $('#district-status').open=manual;renderAlertMode();alSync();tick();commit();
 });
+renderAlertMode();
 map.attributionControl.addAttribution('Тривоги: <a href="https://tryvoha.online/" target="_blank" rel="noopener">Tryvoha.online</a>');
 alSync();
 
