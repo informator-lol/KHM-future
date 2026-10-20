@@ -491,6 +491,11 @@ body:not(.is-admin) #comments-form,body:not(.is-admin) .comment-post button{disp
 @media(max-width:720px){#about-link,body.is-admin #about-link{left:10px;bottom:20px!important}#comments-toggle{top:148px!important;right:10px}}
 #about-link{top:max(12px,env(safe-area-inset-top))!important;left:max(12px,env(safe-area-inset-left));right:auto!important;bottom:auto!important;display:grid;place-items:center;width:40px;height:40px;min-height:40px;padding:0;font-size:24px;line-height:1;box-sizing:border-box}
 body.is-admin #about-link{display:none!important}
+#comments-toggle{top:auto!important;bottom:max(18px,env(safe-area-inset-bottom))!important;right:12px}
+#comments-panel:not([hidden]){animation:comments-enter .24s ease-out both}
+@keyframes comments-enter{from{opacity:0;transform:translateY(18px) scale(.98)}to{opacity:1;transform:translateY(0) scale(1)}}
+@media(prefers-reduced-motion:reduce){#comments-panel:not([hidden]){animation:none}}
+.region-heading{font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:#b9cde0;margin:18px 0 8px}
 </style>
 <link rel="icon" type="image/png" href="./favicon.png?v=1">
 <link rel="apple-touch-icon" href="./favicon.png?v=1">
@@ -567,7 +572,7 @@ body.is-admin #about-link{display:none!important}
       <h2>Автоматичні тривоги</h2>
       <label class="chk"><input type="checkbox" id="alOn"> Оновлювати тривоги без API-ключа</label>
       <p class="hint" id="alSt" role="status"></p>
-      <p class="hint">Джерело: <a href="https://tryvoha.online/" target="_blank" rel="noopener">Tryvoha.online</a> · неофіційний сервіс. Перевірка кожні 30 секунд, поки карта відкрита в адміністратора. Тривога по області застосовується до всіх трьох районів.</p>
+      <p class="hint">Джерело: <a href="https://tryvoha.online/" target="_blank" rel="noopener">Tryvoha.online</a> · неофіційний сервіс. Перевірка кожні 30 секунд, поки карта відкрита в адміністратора. Тривога по області застосовується лише до районів цієї області.</p>
       <p class="hint">Ручні рівні та рівні від цілей можуть залишити район підсвіченим після відбою. Коли автооновлення вимкнено, зовнішні тривоги не впливають на карту. При втраті зв’язку з увімкненим автооновленням останній стан зберігається.</p>
     </section>
     <section>
@@ -726,7 +731,22 @@ function nearestPlace(t){
  return {name,distance};
 }
 
-const RAIONS = GEO.features.map(f=>({id:f.properties.id,name:DISP[f.properties.id]||f.properties.name,label:DISTRICT_LABELS[f.properties.id]||f.properties.label,polys:polysOf(f.geometry),eff:-1,auto:0}));
+// Public API region identifiers checked against /api/v1/regions, 2026-10-20.
+const REGION_NAMES={'xmelnycka-oblast':'Хмельницька область','vinnicka-oblast':'Вінницька область','zitomirska-oblast':'Житомирська область'};
+const EXTRA_DISTRICTS=[{"id":"vinnickii-raion","name":"Вінницький район","oblast":"vinnicka-oblast","source":"Вінницький район"},{"id":"gaisinskii-raion","name":"Гайсинський район","oblast":"vinnicka-oblast","source":"Гайсинський район"},{"id":"zmerinskii-raion","name":"Жмеринський район","oblast":"vinnicka-oblast","source":"Жмеринський район"},{"id":"mogiliv-podilskii-raion","name":"Могилів-Подільський район","oblast":"vinnicka-oblast","source":"Могилів-Подільський район"},{"id":"tulcinskii-raion","name":"Тульчинський район","oblast":"vinnicka-oblast","source":"Тульчинський район"},{"id":"xmilnickii-raion","name":"Хмільницький район","oblast":"vinnicka-oblast","source":"Хмільницький район"},{"id":"berdicivskii-raion","name":"Бердичівський район","oblast":"zitomirska-oblast","source":"Бердичівський район"},{"id":"zitomirskii-raion","name":"Житомирський район","oblast":"zitomirska-oblast","source":"Житомирський район"},{"id":"zviagelskii-raion","name":"Звягельський район","oblast":"zitomirska-oblast","source":"Новоград-Волинський район"},{"id":"korostenskii-raion","name":"Коростенський район","oblast":"zitomirska-oblast","source":"Коростенський район"}];
+function districtLabel(area){
+ const [west,south,east,north]=area.b,lat=(south+north)/2,lon=(west+east)/2;
+ if(area.p.some(p=>inPoly(lat,lon,p)))return [lat,lon];
+ let best=null,score=Infinity;
+ for(let y=1;y<20;y++)for(let x=1;x<20;x++){const la=south+(north-south)*y/20,lo=west+(east-west)*x/20,d=(la-lat)**2+(lo-lon)**2;if(d<score&&area.p.some(p=>inPoly(la,lo,p))){best=[la,lo];score=d;}}
+ return best||[area.p[0][0][0][1],area.p[0][0][0][0]];
+}
+for(const d of EXTRA_DISTRICTS){
+ const area=ADMIN_AREAS.districts.find(a=>a.n===d.source);
+ if(!area)throw Error('Відсутні межі: '+d.name);
+ GEO.features.push({type:'Feature',properties:{id:d.id,name:d.name.replace(/ район$/,''),oblast:d.oblast,label:districtLabel(area)},geometry:{type:'MultiPolygon',coordinates:area.p}});
+}
+const RAIONS = GEO.features.map(f=>({id:f.properties.id,oblast:f.properties.oblast||'xmelnycka-oblast',name:DISP[f.properties.id]||f.properties.name,label:DISTRICT_LABELS[f.properties.id]||f.properties.label,polys:polysOf(f.geometry),eff:-1,auto:0}));
 const raionAt = (lat,lon)=>{for(const r of RAIONS)if(r.polys.some(p=>inPoly(lat,lon,p)))return r.id;return null;};
 const raionName = id => (RAIONS.find(r=>r.id===id)||{}).name;
 
@@ -1098,6 +1118,10 @@ for(const r of RAIONS){
   r.layer=L.geoJSON(f,{style:{weight:1,color:'#6e8094',opacity:.65,fillColor:LV[0].c,fillOpacity:LV[0].fo,dashArray:null,smoothFactor:.4},interactive:false}).addTo(map);
   r.lbl=L.marker(r.label,{interactive:false,keyboard:false,icon:L.divIcon({className:'rl',html:'',iconSize:[0,0]})}).addTo(map);
 }
+for(const oblast of ['vinnicka-oblast','zitomirska-oblast']){
+ const area=ADMIN_AREAS.oblasts.find(a=>a.n===REGION_NAMES[oblast]);
+ L.geoJSON({type:'Feature',geometry:{type:'MultiPolygon',coordinates:area.p}},{style:{fill:false,color:'#cbd6e2',weight:2,opacity:.8},interactive:false}).addTo(map);
+}
 // Settlement names are supplied by the OSM tiles: no duplicate offset labels.
 
 function styleRaion(r){
@@ -1397,7 +1421,9 @@ function focusTarget(id){
 
 /* ───────── панель ───────── */
 const rbox=$('#raions');
+let previousRegion='';
 for(const r of RAIONS){
+  if(r.oblast!==previousRegion){const heading=document.createElement('h3');heading.className='region-heading';heading.textContent=REGION_NAMES[r.oblast];rbox.append(heading);previousRegion=r.oblast;}
   const row=document.createElement('div');row.className='rrow';
   row.innerHTML=`<i class="dot"></i><div><b>${r.name}</b><small>—</small></div><select aria-label="Рівень загрози: ${r.name}">${LV.map(l=>`<option value="${l.k}">${l.name}</option>`).join('')}</select>`;
   const sel=row.querySelector('select');sel.value=S.raions[r.id].manual;
@@ -1828,7 +1854,7 @@ const AL={URL:'https://tryvoha.online/api/v1/alerts',EVERY:30000,on:true,timer:n
 try{AL.on=localStorage.getItem('khm-tryvoha-on')!=='0';}catch(_){}
 let alarmSeen=!USE_FB;
 const hms=ms=>{const d=new Date(ms);return pad2(d.getHours())+':'+pad2(d.getMinutes())+':'+pad2(d.getSeconds());};
-const ALERT_REGIONS={'sepetivskii-raion':'shepetivskyi','xmelnickii-raion':'khmelnytskyi','kamianec-podilskii-raion':'kamianets'};
+const ALERT_REGIONS={'sepetivskii-raion':'shepetivskyi','xmelnickii-raion':'khmelnytskyi','kamianec-podilskii-raion':'kamianets',...Object.fromEntries(EXTRA_DISTRICTS.map(d=>[d.id,d.id]))};
 function alParse(j){
   const timestamp=Date.parse(j&&j.updated_at);
   if(!j||!Array.isArray(j.alerts)||!Number.isFinite(timestamp)||j.active!==j.alerts.length)throw new Error('неповна або некоректна відповідь сервісу');
@@ -1837,13 +1863,14 @@ function alParse(j){
   const bump=(id,level,since)=>{const x=lv[id];x.lvl=Math.max(x.lvl,level);if(!x.since||since<x.since)x.since=since;};
   for(const a of j.alerts){
     if(!a||typeof a.slug!=='string'||typeof a.type!=='string'||!['red','yellow'].includes(a.level)||!Number.isFinite(Date.parse(a.started_at)))throw new Error('невідомий формат тривог');
-    const whole=a.type==='state'&&a.slug==='xmelnycka-oblast';
-    if(!whole&&a.oblast_slug!=='xmelnycka-oblast')continue;
+    const whole=a.type==='state'&&Object.hasOwn(REGION_NAMES,a.slug);
+    const oblast=whole?a.slug:a.oblast_slug;
+    if(!Object.hasOwn(REGION_NAMES,oblast))continue;
     const since=Date.parse(a.started_at),level=a.level==='yellow'?1:3;
-    if(whole)RAIONS.forEach(r=>bump(r.id,level,since));
+    if(whole)RAIONS.filter(r=>r.oblast===oblast).forEach(r=>bump(r.id,level,since));
     else{
       const id=ALERT_REGIONS[a.slug];
-      if(!id)throw new Error('невідомий район Хмельниччини у відповіді');
+      if(!id||!RAIONS.some(r=>r.id===id&&r.oblast===oblast))throw new Error('невідомий район у відповіді для '+REGION_NAMES[oblast]);
       bump(id,level,since);
     }
   }
