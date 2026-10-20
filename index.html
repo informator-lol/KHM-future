@@ -385,7 +385,7 @@ body.dialog-open #panel,body.dialog-open #target-sheet{pointer-events:none}
 .tgt.capture-selected{outline:3px solid #70e8ff;outline-offset:9px;border-radius:50%;background:#70e8ff33;box-shadow:0 0 0 9px #70e8ff22}
 .tgt.capture-selected::after{content:'✓';position:absolute;left:-16px;top:-18px;width:22px;height:22px;border-radius:50%;background:#70e8ff;color:#071921;text-align:center;font:bold 16px/22px system-ui}
 body.capture-mode .tgt{cursor:pointer}
-body.capture-mode #panel #pbody>section:not(:first-child){display:none}
+body.capture-mode #panel #pbody>section:not(#capture-section){display:none}
 body.capture-mode #panel{bottom:auto}
 @media(max-width:720px){body.capture-mode #panel{top:auto;bottom:8px}}
 #about-link{position:absolute;z-index:950;right:12px;bottom:58px;display:block;padding:10px 14px;border:1px solid #34455c;border-radius:12px;background:#141e2bf2;color:#e8eaed;text-decoration:none;font-weight:650;box-shadow:0 4px 18px #0005}
@@ -487,7 +487,7 @@ body:not(.is-admin) #comments-form,body:not(.is-admin) .comment-post button{disp
 #maintenance-gate{position:fixed;inset:0;z-index:100000;background:#0b1420;display:grid;place-items:center;padding:24px;color:#e5effb}#maintenance-gate[hidden]{display:none}#maintenance-gate>div{max-width:440px;text-align:center}#maintenance-gate h1{font-size:27px;line-height:1.25}#maintenance-gate p{color:#a8bdd4;line-height:1.7}.maintenance-symbol{display:block;font-size:56px;color:#ffa23d;margin-bottom:18px}#maintenance-login{padding:10px 16px;border:1px solid #405773;border-radius:10px;background:#1c2c40;color:#cfe2f7;margin-top:16px}body.maintenance-blocked{overflow:hidden}body.maintenance-blocked> :not(#maintenance-gate):not(script):not(style){visibility:hidden!important}
 .comment-attach-tools{display:flex;gap:6px;margin-top:8px}.comment-attach-tools button,#attachment-picker button,#attachment-draft button{background:#1c3045;color:#c9e6ff;border:1px solid #3e5c78;border-radius:8px;padding:8px;font-size:11px}#attachment-picker{padding:8px;border:1px solid #354d66;border-radius:10px;margin-top:8px}#attachment-search{width:100%;background:#0d1a28;color:#e6f1ff;border:1px solid #3e5c78;border-radius:8px;padding:8px}#attachment-results{display:grid;gap:5px;max-height:150px;overflow:auto;margin:6px 0;font-size:12px}#attachment-results button{text-align:left}#attachment-draft{display:flex;flex-wrap:wrap;gap:5px;margin-top:7px}body:not(.is-admin) .comment-post .comment-location,.comment-post .comment-location{display:inline-flex;align-items:center;gap:6px;margin-top:10px;background:#173449;border-color:#3b7392;color:#9ee4ff;padding:8px 10px;text-align:left}.comment-map-highlight{pointer-events:none}.comment-map-highlight span{display:block;width:100%;height:100%;box-sizing:border-box;border:3px solid #8ce6ff;border-radius:50%;background:#7bdfff26;box-shadow:0 0 0 10px #7bdfff18,0 0 28px #6bdcff88;animation:comment-highlight 5s linear forwards}@keyframes comment-highlight{0%{opacity:0;transform:scale(.65)}12%,70%{opacity:1;transform:scale(1)}100%{opacity:0;transform:scale(1.2)}}
 .heading-controls button{background:#20364c;color:#e5f1ff;border:1px solid #466580;border-radius:9px;padding:8px 12px;font:600 12px system-ui;cursor:pointer}.heading-controls button:hover{background:#2b4865}.heading-controls input[type=checkbox]{accent-color:#ff941f;color-scheme:dark}
-#about-link{top:auto!important;bottom:18px!important;left:18px;right:auto!important;padding:8px 12px;min-height:36px}body.is-admin #about-link{left:360px}#comments-toggle{top:68px!important;bottom:auto!important;right:12px;padding:9px 12px;min-height:38px}#create-straight-label{margin-top:10px;font-size:12px}
+#about-link{top:auto!important;bottom:18px!important;left:18px;right:auto!important;padding:8px 12px;min-height:36px}body.is-admin #about-link{left:360px}#comments-toggle{top:100px!important;bottom:auto!important;right:12px;padding:9px 12px;min-height:38px}#create-straight-label{margin-top:10px;font-size:12px}
 @media(max-width:720px){#about-link,body.is-admin #about-link{left:10px;bottom:20px!important}#comments-toggle{top:148px!important;right:10px}}
 </style>
 <link rel="icon" type="image/png" href="./favicon.png?v=1">
@@ -546,7 +546,7 @@ body:not(.is-admin) #comments-form,body:not(.is-admin) .comment-post button{disp
   </header>
   <div id="pbody">
     <section><label class="chk"><input type="checkbox" id="maintenance-toggle"> Технічні роботи</label><p class="hint" id="maintenance-admin-status" role="status">Гості можуть переглядати карту.</p></section>
-    <section>
+    <section id="capture-section">
       <button type="button" class="primary" id="capture-many">▣ Зробити скріншот</button>
       <div id="capture-selection" hidden>
         <p class="hint">Натискайте на шахеди на карті: повторне натискання знімає виділення. Потім натисніть «Створити PNG». Група вибирається цілком.</p>
@@ -2335,7 +2335,7 @@ function setCaptureMode(enabled){
  captureMode=enabled;document.body.classList.toggle('capture-mode',enabled);
  $('#capture-selection').hidden=!enabled;
  $('#capture-many').textContent=enabled?'▣ Виберіть шахеди на карті':'▣ Зробити скріншот';
- if(enabled){map.closePopup();closeTargetSheet();$('#panel').classList.remove('collapsed');$('#collapse').textContent='▾';}
+ if(enabled){map.closePopup();closeTargetSheet();if(!$('#comments-panel').hidden)toggleComments(false);$('#panel').classList.remove('collapsed');$('#collapse').textContent='▾';$('#pbody').scrollTop=0;}
  else captureIds.clear();
  for(const t of live()){
   const rt=RT.get(t.id);if(!rt)continue;
