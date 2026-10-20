@@ -1185,9 +1185,11 @@ function buildPopup(t){
   ['keydown','keyup','keypress'].forEach(ev=>inp.addEventListener(ev,e=>{e.stopPropagation();if(ev==='keydown'&&e.key==='Enter'){e.preventDefault();inp.blur();}}));   // щоб +/−/стрілки не рухали карту
   inp.addEventListener('input',()=>{clearTimeout(nt);nt=setTimeout(()=>setNote(t,inp.value),500);});
   inp.addEventListener('change',()=>{clearTimeout(nt);setNote(t,inp.value);});
-  const si=el.querySelector('.spdin');
+  const si=el.querySelector('.spdin');let speedTimer;
   if(si){['keydown','keyup','keypress'].forEach(ev=>si.addEventListener(ev,e=>{e.stopPropagation();if(ev==='keydown'&&e.key==='Enter'){e.preventDefault();si.blur();}}));
-    si.addEventListener('change',()=>setSpeed(t,si.value));}
+    const applySpeed=()=>{clearTimeout(speedTimer);if(si.value!==''&&Number.isFinite(Number(si.value))&&Number(si.value)>=1&&Number(si.value)<=3000)setSpeed(t,si.value);};
+    si.addEventListener('input',()=>{clearTimeout(speedTimer);speedTimer=setTimeout(applySpeed,500);});
+    si.addEventListener('change',applySpeed);}
   el.addEventListener('click',e=>{e.stopPropagation();const b=e.target.closest('button');if(!b)return;e.preventDefault();const a=b.dataset.a;
     if(a==='info-now')setInfoAge(t,0);
     else if(a==='info-age'){const field=el.querySelector('.info-minutes');if(field.value===''||!field.checkValidity()){field.reportValidity();return;}setInfoAge(t,Number(field.value));}
