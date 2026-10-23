@@ -2298,6 +2298,49 @@ function shareIconSvg(t,color){
  const icons=points.map(([x,y],i)=>SVG[members[i]](color).replace('<svg ', '<svg x="'+(half+x-6.5)+'" y="'+(half+y-6.5)+'" ').replace('width="34" height="34"','width="13" height="13"')).join('');
  return '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 '+size+' '+size+'" width="144" height="144">'+icons+'</svg>';
 }
+// Regional context inset for the exported card; uses the same boundaries and alerts as the map.
+async function drawShareOverview(ctx,t,targetImage,color){
+ const box={x:340,y:340,w:148,h:124};
+ const regions=ADMIN_AREAS.oblasts.filter(a=>Object.values(REGION_NAMES).includes(a.n));
+ const corners=regions.flatMap(a=>[[a.b[1],a.b[0]],[a.b[3],a.b[2]]]);
+ corners.push([t.lat,t.lon]);
+ const points=corners.map(p=>map.project(p,0));
+ const minX=Math.min(...points.map(p=>p.x)),maxX=Math.max(...points.map(p=>p.x));
+ const minY=Math.min(...points.map(p=>p.y)),maxY=Math.max(...points.map(p=>p.y));
+ const scale=Math.min((box.w-24)/(maxX-minX),(box.h-28)/(maxY-minY));
+ const zoom=Math.log2(scale),cx=(minX+maxX)/2*scale,cy=(minY+maxY)/2*scale;
+ const left=cx-box.w/2,top=cy-box.h/2;
+ const project=(lat,lon)=>{const p=map.project([lat,lon],zoom);return [box.x+p.x-left,box.y+p.y-top];};
+ const tileZoom=Math.ceil(zoom)+1,tileSize=256*2**(zoom-tileZoom),jobs=[];
+ for(let x=Math.floor(left/tileSize);x<=Math.floor((left+box.w)/tileSize);x++)for(let y=Math.floor(top/tileSize);y<=Math.floor((top+box.h)/tileSize);y++){
+  if(y>=0&&y<2**tileZoom)jobs.push(shareTile(tileZoom,x,y).then(img=>({img,x,y})).catch(()=>null));
+ }
+ const tiles=await Promise.all(jobs);
+ ctx.save();ctx.beginPath();ctx.roundRect(box.x,box.y,box.w,box.h,5);ctx.clip();
+ ctx.fillStyle='#13202a';ctx.fillRect(box.x,box.y,box.w,box.h);
+ const filter=getComputedStyle(map.getPane('tilePane')).filter;
+ ctx.filter=filter==='none'?'invert(1) hue-rotate(180deg) brightness(.82) contrast(.92) saturate(.55)':filter;
+ for(const tile of tiles)if(tile)ctx.drawImage(tile.img,box.x+tile.x*tileSize-left,box.y+tile.y*tileSize-top,tileSize,tileSize);
+ ctx.filter='none';
+ const path=polys=>{ctx.beginPath();for(const poly of polys)for(const ring of poly){ring.forEach(([lon,lat],i)=>{const p=project(lat,lon);i?ctx.lineTo(...p):ctx.moveTo(...p);});ctx.closePath();}};
+ for(const r of RAIONS){const level=LV[Math.max(0,r.eff)]||LV[0];path(r.polys);ctx.fillStyle=level.c;ctx.globalAlpha=level.fo;ctx.fill('evenodd');ctx.globalAlpha=1;ctx.strokeStyle='#81919b80';ctx.lineWidth=.3;ctx.stroke();}
+ for(const region of regions){path(region.p);ctx.strokeStyle='#cbd6e2';ctx.lineWidth=.75;ctx.stroke();}
+ ctx.textAlign='center';ctx.font='700 5.5px system-ui';ctx.fillStyle='#f1f5ed';ctx.shadowColor='#06111c';ctx.shadowBlur=3;
+ for(const [name,lat,lon] of [['Хмельницька',49.65,26.95],['Вінницька',48.95,28.65],['Житомирська',50.75,28.45]]){const p=project(lat,lon);ctx.fillText(name,...p);ctx.font='4.5px system-ui';ctx.fillText('область',p[0],p[1]+6);ctx.font='700 5.5px system-ui';}
+ ctx.shadowBlur=0;
+ const [x,y]=project(t.lat,t.lon);
+ ctx.beginPath();ctx.arc(x,y,11,0,Math.PI*2);ctx.fillStyle=color+'28';ctx.fill();ctx.strokeStyle=color;ctx.lineWidth=1;ctx.stroke();
+ ctx.beginPath();ctx.arc(x,y,8,0,Math.PI*2);ctx.fillStyle='#0c1420e8';ctx.fill();
+ ctx.save();ctx.translate(x,y);ctx.rotate(t.hdg*Math.PI/180);ctx.drawImage(targetImage,-8,-8,16,16);ctx.restore();
+ const label=(cOf(t)>1?'Група #':'Ціль #')+t.id;
+ ctx.font='700 6px system-ui';const width=ctx.measureText(label).width+8;
+ const lx=Math.max(box.x+3,Math.min(box.x+box.w-width-3,x-width/2));
+ const ly=y+24>box.y+box.h-10?y-22:y+13;
+ ctx.fillStyle='#0c1420ed';ctx.fillRect(lx,ly,width,10);ctx.fillStyle='#fff';ctx.fillText(label,lx+width/2,ly+7);
+ ctx.textAlign='right';ctx.font='4.5px system-ui';ctx.fillStyle='#0c1420dd';ctx.fillRect(box.x,box.y+box.h-9,box.w,9);ctx.fillStyle='#c5d3df';ctx.fillText('© OpenStreetMap contributors',box.x+box.w-3,box.y+box.h-3);
+ ctx.restore();ctx.save();ctx.strokeStyle='#34495e';ctx.lineWidth=.7;ctx.beginPath();ctx.roundRect(box.x,box.y,box.w,box.h,5);ctx.stroke();ctx.restore();
+}
+
 async function renderShareCard(t){
  const canvas=document.createElement('canvas');canvas.width=canvas.height=1536;
  const ctx=canvas.getContext('2d'),color=tcol(t),now=new Date(),area=locationOf(t.lat,t.lon),near=nearestPlace(t);
@@ -2357,14 +2400,15 @@ async function renderShareCard(t){
  for(const [x,label,value,width] of [[24,'ШВИДКІСТЬ',(t.stopped?0:t.speed)+' км/год',150],[192,'КУРС',Math.round(t.hdg)%360+'° '+compass(t.hdg),130],[340,'ОРІЄНТОВНИЙ ЧАС',eta,148]]){
   ctx.font='700 9px system-ui';ctx.fillStyle='#8fa5bc';ctx.fillText(label,x,300);ctx.font='700 16px system-ui';ctx.fillStyle='#eef4fb';fitText(ctx,value,x,321,width);
  }
- ctx.font='600 13px system-ui';ctx.fillStyle='#e5edf7';wrapText(ctx,'Маршрут: '+(routeTextBase(t)||'Не задано'),24,344,464,2,16);
+ ctx.font='600 13px system-ui';ctx.fillStyle='#e5edf7';wrapText(ctx,'Маршрут: '+(routeTextBase(t)||'Не задано'),24,344,300,2,16);
  ctx.font='12px system-ui';ctx.fillStyle='#b7c9dc';
- fitText(ctx,'Наступна точка: '+(next?next.name+' · '+km(distM(t.lat,t.lon,next.lat,next.lon))+' км':'Не задано'),24,380,464);
- fitText(ctx,'Поблизу: '+near.name+' · '+km(near.distance)+' км'+(!t.free?'  |  Залишилось: '+km(remainM(t))+' км':''),24,398,464);
+ fitText(ctx,'Наступна точка: '+(next?next.name+' · '+km(distM(t.lat,t.lon,next.lat,next.lon))+' км':'Не задано'),24,380,300);
+ wrapText(ctx,'Поблизу: '+near.name+' · '+km(near.distance)+' км'+(!t.free?'  |  Залишилось: '+km(remainM(t))+' км':''),24,398,300,2,14);
  if(t.note?.trim()){
-  ctx.fillStyle='#8fa5bc';ctx.font='700 9px system-ui';ctx.fillText('КОМЕНТАР',24,415);
-  ctx.fillStyle='#eef4fb';ctx.font='13px system-ui';wrapText(ctx,t.note.trim(),24,432,464,3,15);
+  ctx.fillStyle='#8fa5bc';ctx.font='700 9px system-ui';ctx.fillText('КОМЕНТАР',24,428);
+  ctx.fillStyle='#eef4fb';ctx.font='13px system-ui';wrapText(ctx,t.note.trim(),24,443,300,2,15);
  }
+ await drawShareOverview(ctx,t,targetImage,color);
  ctx.strokeStyle='#293b4f';ctx.beginPath();ctx.moveTo(24,473);ctx.lineTo(488,473);ctx.stroke();
  ctx.fillStyle='#a8b9cc';ctx.font='10px system-ui';fitText(ctx,infoAge(t,now.getTime()).text,24,488,464);ctx.fillText('Курс за внесеними даними; позиції можуть бути неточними.',24,502);
  return new Promise((resolve,reject)=>canvas.toBlob(b=>b?resolve(b):reject(new Error('Не вдалося створити PNG')),'image/png'));
